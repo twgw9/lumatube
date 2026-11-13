@@ -16,6 +16,10 @@ jobs:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/cache@v4
+        with:
+          path: src-tauri/target
+          key: windows-native-v1-${{ hashFiles('src-tauri/Cargo.toml', 'src-tauri/tauri.conf.json', 'src-tauri/build.rs') }}
       - run: npm ci
       - run: npm run test:regression
       - name: Fetch upstream desktop tools and retain notices
@@ -67,6 +71,11 @@ jobs:
             if ($chunk) { Write-Output "::error title=Native compiler output::$chunk" }
             exit $buildExit
           }
+      - name: Test native download path parser
+        env:
+          CARGO_BUILD_JOBS: 2
+          CARGO_TERM_COLOR: never
+        run: cargo test --manifest-path src-tauri/Cargo.toml --lib --release vault::tests
       - uses: actions/upload-artifact@v4
         with:
           name: LumaTube-Windows-preview-unsigned

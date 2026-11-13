@@ -169,6 +169,15 @@ pub async fn spawn_download(
     job_id: String,
 ) -> AppResult<()> {
     let plan = plan_for(&req.preset);
+    if !regex::Regex::new(r"^[A-Za-z0-9_-]{11}$").unwrap().is_match(&req.video_id) {
+        return Err(AppError::Other("Invalid YouTube video ID".into()));
+    }
+    let exe = std::env::current_exe()?;
+    let tool_dir = exe.parent().ok_or_else(|| AppError::Other("Application directory unavailable".into()))?;
+    let ffmpeg = tool_dir.join(if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" });
+    if !plan.subs_only && !ffmpeg.is_file() {
+        return Err(AppError::Extractor("Bundled ffmpeg is missing. Reinstall the complete desktop preview.".into()));
+    }
     let base = expand_home(&req.folder);
     let target_dir = if req.channel_name.is_empty() {
         base.clone()
@@ -204,6 +213,15 @@ pub async fn spawn_download(
         base.join(".localtube-archive.txt").to_string_lossy().to_string(),
     ];
 
+    args.extend(["--ffmpeg-location".into(), tool_dir.to_string_lossy().to_string(), "--no-simulate".into()]);
+    if plan.subs_only {
+        args.extend(["--print".into(), "after_video:LUMATUBE_SUBS:%(requested_subtitles)j".into()]);
+    } else {
+        args.extend(["--print".into(), "after_move:LUMATUBE_FILE:%(filepath)j".into()]);
+    }
+    if req.sponsor_cut || req.preset == "sponsor-free" {
+        args.extend(["--sponsorblock-remove".into(), "sponsor,selfpromo,interaction,intro,outro".into()]);
+    }
     if let Some(m) = plan.merge {
         args.push("--merge-output-format".into());
         args.push(m.into());
@@ -224,13 +242,13 @@ pub async fn spawn_download(
         args.push("--sub-langs".into());
         args.push("en,hi".into());
     }
-    if req.embed_thumbnail {
+    if req.embed_thumbnail && !plan.subs_only {
         args.push("--embed-thumbnail".into());
     }
-    if req.embed_chapters {
+    if req.embed_chapters && !plan.subs_only {
         args.push("--embed-chapters".into());
     }
-    if req.embed_subs {
+    if req.embed_subs && !plan.subs_only {
         args.push("--embed-subs".into());
         args.push("--sub-langs".into());
         args.push("en,hi".into());
@@ -256,25 +274,26 @@ pub async fn spawn_download(
 
     let app2 = app.clone();
     let job = job_id.clone();
-    let sponsor_cut = req.sponsor_cut || req.preset == "sponsor-free";
     let gallery = req.show_in_gallery;
     let vid = req.video_id.clone();
 
     tauri::async_runtime::spawn(async move {
         let mut final_path = String::new();
-        let mut total_bytes: u64 = 0;
+        let mut finalized = false;
 
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(line) => {
                     let text = String::from_utf8_lossy(&line);
                     if let Some(p) = extract_destination(&text) {
-                        final_path = p;
+                        if text.trim_start().starts_with("LUMATUBE_FILE:") || text.trim_start().starts_with("LUMATUBE_SUBS:") {
+                            finalized = true;
+                            final_path = p;
+                        } else if !finalized {
+                            final_path = p;
+                        }
                     }
                     if let Some(ev) = parse_progress(&job, &text) {
-                        if let Some(b) = ev.bytes_total {
-                            total_bytes = b.max(total_bytes);
-                        }
                         let _ = app2.emit("download://progress", ev);
                     } else if text.contains("Merging") || text.contains("Extracting audio") {
                         let _ = app2.emit(
@@ -299,7 +318,13 @@ pub async fn spawn_download(
                         }
                     }
                     if status.code == Some(0) {
-                        let real_size = std::fs::metadata(&final_path).map(|m| m.len()).unwrap_or(total_bytes);
+                        let real_size = match std::fs::metadata(&final_path) {
+                            Ok(meta) if finalized && meta.is_file() && meta.len() > 0 => meta.len(),
+                            _ => {
+                                let _ = app2.emit("download://error", serde_json::json!({ "jobId": job, "error": "Extractor finished but no non-empty output file was verified. Check the download folder and try again." }));
+                                break;
+                            }
+                        };
                         let in_gallery = if gallery {
                             register_in_gallery(&final_path, &vid).await.unwrap_or(false)
                         } else {
@@ -315,13 +340,7 @@ pub async fn spawn_download(
                             },
                         );
 
-                        if sponsor_cut {
-                            let _ = app2.emit(
-                                "download://stage",
-                                serde_json::json!({ "jobId": job, "stage": "cutting sponsor segments…" }),
-                            );
-                            // segment cutting is handled by commands::cut_sponsors
-                        }
+
                     } else {
                         let _ = app2.emit(
                             "download://error",
@@ -407,6 +426,13 @@ fn parse_size(s: &str) -> Option<u64> {
 }
 
 fn extract_destination(line: &str) -> Option<String> {
+    if let Some(value) = line.trim().strip_prefix("LUMATUBE_FILE:") {
+        return serde_json::from_str::<String>(value).ok().filter(|path| !path.is_empty());
+    }
+    if let Some(value) = line.trim().strip_prefix("LUMATUBE_SUBS:") {
+        let subtitles: serde_json::Value = serde_json::from_str(value).ok()?;
+        return subtitles.as_object()?.values().find_map(|sub| sub["filepath"].as_str().map(str::to_owned));
+    }
     line.split_once("[download] Destination:")
         .map(|(_, path)| path.trim().to_string())
         .or_else(|| {
@@ -522,4 +548,18 @@ pub async fn cut_segments(
     }
 
     Ok(output)
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::extract_destination;
+    #[test]
+    fn final_paths_and_subtitles() {
+        assert_eq!(extract_destination(r#"LUMATUBE_FILE:"C:\\Videos\\clip.mp3""#), Some(r"C:\Videos\clip.mp3".into()));
+        assert_eq!(extract_destination(r#"LUMATUBE_SUBS:{"en":{"filepath":"/tmp/clip.en.vtt"}}"#), Some("/tmp/clip.en.vtt".into()));
+        assert_eq!(extract_destination("LUMATUBE_FILE:not-json"), None);
+        assert_eq!(extract_destination("LUMATUBE_SUBS:null"), None);
+        assert_eq!(extract_destination("[download] Destination: /tmp/clip.mp4"), Some("/tmp/clip.mp4".into()));
+    }
 }

@@ -138,11 +138,11 @@ export function WatchPage() {
 
   const onEnded = useCallback(() => {
     const next = related[0];
-    if (next && settings.autoplayNext && !settings.hideRecommendations) {
+    if (next && settings.autoplayNext && !settings.hideRecommendations && !(settings.focusMode && settings.autoPlayDisabledInFocus)) {
       window.location.hash = `#/watch/${next.id}`;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [related, settings.autoplayNext, settings.hideRecommendations]);
+  }, [related, settings.autoplayNext, settings.hideRecommendations, settings.focusMode, settings.autoPlayDisabledInFocus]);
 
   const resumeAt = progress && !progress.completed && progress.percent < 0.95 ? progress.positionSec : startAt;
 
