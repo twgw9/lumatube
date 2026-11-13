@@ -72,7 +72,7 @@ class NativeBackend(private val activity: MainActivity) {
         if (Page.isValid(results.nextPage)) {
             if (pages.size >= 64) pages.entries.minByOrNull { it.value.created }?.key?.let { pages.remove(it) }
             nextToken = UUID.randomUUID().toString()
-            pages[nextToken] = Continuation(query, extractor, results.nextPage, System.currentTimeMillis())
+            pages[nextToken] = Continuation(query, extractor, requireNotNull(results.nextPage), System.currentTimeMillis())
         }
         return JSONObject().put("videos", videos).put("nextPageToken", nextToken ?: JSONObject.NULL)
     }
