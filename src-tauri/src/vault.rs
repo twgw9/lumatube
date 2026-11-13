@@ -407,8 +407,8 @@ fn parse_size(s: &str) -> Option<u64> {
 }
 
 fn extract_destination(line: &str) -> Option<String> {
-    line.find("[download] Destination:")
-        .map(|_| line.split("Destination:").nth(1)?.trim().to_string())
+    line.split_once("[download] Destination:")
+        .map(|(_, path)| path.trim().to_string())
         .or_else(|| {
             line.find("[Merger] Merging formats into \"")
                 .and_then(|_| line.split('"').nth(1).map(str::to_string))
