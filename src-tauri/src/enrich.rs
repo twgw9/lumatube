@@ -66,7 +66,8 @@ pub async fn sponsor_segments(db: &Db, video_id: &str, categories: &[String]) ->
 
     // privacy: send only the first 4 hex chars of sha256(videoId)
     let digest = Sha256::digest(video_id.as_bytes());
-    let prefix = hex::encode(digest)[..4].to_string();
+    let hash = hex::encode(digest);
+    let prefix = hash[..4].to_string();
 
     let mut req = http().get(format!("https://sponsor.ajay.app/api/skipSegments/{prefix}"));
     for c in categories {

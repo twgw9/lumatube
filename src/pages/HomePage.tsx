@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Filter, Flame, Play, Plus, Sparkles, TrendingUp } from "lucide-react";
 import { demoVideos } from "@/lib/mock";
 import { useLibrary } from "@/store/library";
 import { useSettings } from "@/store/settings";
 import { VideoGrid } from "@/components/VideoCard";
+import { loadFeed } from "@/lib/bridge";
 import { Button, EmptyState, Segmented } from "@/components/ui";
 import { cn, formatTime } from "@/lib/utils";
 import type { Video } from "@/lib/types";
@@ -22,9 +23,23 @@ export function HomePage() {
   const history = useLibrary((s) => s.history);
 
   const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? "t_new");
+  const [remoteFeed, setRemoteFeed] = useState<Video[] | null>(null);
+
+  // With the Rust backend present this pulls the real SQLite feed; in the
+  // browser demo it returns [] and we fall back to the sample dataset.
+  useEffect(() => {
+    let alive = true;
+    loadFeed(150).then((rows) => {
+      if (alive && rows.length) setRemoteFeed(rows);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = demoVideos.filter((v) => {
+    const source = remoteFeed ?? demoVideos;
+    let list = source.filter((v) => {
       if (hideShorts && v.isShort) return false;
       if (channelBlocklist.includes(v.channelId)) return false;
       const hay = `${v.title} ${v.channelName}`.toLowerCase();
@@ -40,7 +55,7 @@ export function HomePage() {
       }
     }
     return list;
-  }, [activeTab, tabs, folders, hideShorts, keywordBlocklist, channelBlocklist]);
+  }, [activeTab, tabs, folders, hideShorts, keywordBlocklist, channelBlocklist, remoteFeed]);
 
   const continueList = useMemo(() => {
     return Object.values(progress)

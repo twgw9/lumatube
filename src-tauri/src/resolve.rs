@@ -109,12 +109,12 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
         .sidecar("yt-dlp")
         .map_err(|e| AppError::Extractor(format!("sidecar missing: {e}")))?
         .args([
-            "-J",
-            "--no-warnings",
-            "--no-playlist",
-            "-f",
-            "bv*+ba/b",
-            &url,
+            "-J".to_string(),
+            "--no-warnings".to_string(),
+            "--no-playlist".to_string(),
+            "-f".to_string(),
+            "bv*+ba/b".to_string(),
+            url.clone(),
         ])
         .output()
         .await

@@ -332,10 +332,6 @@ pub async fn spawn_download(
 /// `[download]  42.3% of 123.45MiB at 3.21MiB/s ETA 00:12`
 fn parse_progress(job: &str, line: &str) -> Option<ProgressEvent> {
     if !line.contains("[download]") || !line.contains('%') {
-        if let Some(idx) = line.find("Destination:") {
-            let _ = idx;
-        }
-        // still capture destination lines for the final path
         return None;
     }
 
@@ -360,17 +356,19 @@ fn parse_progress(job: &str, line: &str) -> Option<ProgressEvent> {
         .nth(1)
         .and_then(|s| s.split(' ').next())
         .and_then(|s| parse_size(s));
-    let eta_sec = line
-        .split("ETA ")
-        .nth(1)
-        .and_then(|s| s.trim().split(':').collect::<Vec<_>>().try_into().ok())
-        .and_then(|parts: Vec<&str>| {
-            if parts.len() == 2 {
-                Some(parts[0].parse::<u64>().ok()? * 60 + parts[1].parse::<u64>().ok()?)
-            } else {
-                None
-            }
-        });
+    let eta_sec = line.split("ETA ").nth(1).and_then(|s| {
+        let token = s.split_whitespace().next()?.trim();
+        let parts: Vec<&str> = token.split(':').collect();
+        match parts.as_slice() {
+            [m, sec] => Some(m.parse::<u64>().ok()? * 60 + sec.parse::<u64>().ok()?),
+            [h, m, sec] => Some(
+                h.parse::<u64>().ok()? * 3600
+                    + m.parse::<u64>().ok()? * 60
+                    + sec.parse::<u64>().ok()?,
+            ),
+            _ => None,
+        }
+    });
 
     Some(ProgressEvent {
         job_id: job.to_string(),
@@ -477,27 +475,27 @@ pub async fn cut_segments(
         .shell()
         .sidecar("ffmpeg")
         .map_err(|e| AppError::Extractor(format!("ffmpeg sidecar missing: {e}")))?
-        .args([
-            "-y",
-            "-i",
-            &input.to_string_lossy(),
-            "-filter_complex",
-            &filter,
-            "-map",
-            "[outv]",
-            "-map",
-            "[outa]",
-            "-c:v",
-            "libx264",
-            "-preset",
-            "veryfast",
-            "-crf",
-            "20",
-            "-c:a",
-            "aac",
-            "-b:a",
-            "192k",
-            &output.to_string_lossy(),
+        .args(vec![
+            "-y".to_string(),
+            "-i".to_string(),
+            input.to_string_lossy().to_string(),
+            "-filter_complex".to_string(),
+            filter,
+            "-map".to_string(),
+            "[outv]".to_string(),
+            "-map".to_string(),
+            "[outa]".to_string(),
+            "-c:v".to_string(),
+            "libx264".to_string(),
+            "-preset".to_string(),
+            "veryfast".to_string(),
+            "-crf".to_string(),
+            "20".to_string(),
+            "-c:a".to_string(),
+            "aac".to_string(),
+            "-b:a".to_string(),
+            "192k".to_string(),
+            output.to_string_lossy().to_string(),
         ])
         .spawn()
         .map_err(|e| AppError::Extractor(e.to_string()))?;

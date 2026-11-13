@@ -16,10 +16,12 @@
     "fs:allow-video-write-recursive",
     "fs:allow-download-read-recursive",
     "fs:allow-download-write-recursive",
-    "shell:allow-execute",
     {
       "identifier": "shell:allow-execute",
-      "allow": [{ "name": "binaries/yt-dlp", "sidecar": true }]
+      "allow": [
+        { "name": "binaries/yt-dlp", "sidecar": true, "args": true },
+        { "name": "binaries/ffmpeg", "sidecar": true, "args": true }
+      ]
     },
     "notification:default",
     "store:default",

@@ -15,3 +15,6 @@ src-tauri/binaries/
 # local build artefacts
 .playwright/
 tsconfig.tsbuildinfo
+tsconfig.tsbuildinfo
+.smoke-run.mjs
+.smoke-out/

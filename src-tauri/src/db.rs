@@ -255,16 +255,16 @@ impl Db {
                    subscribers = COALESCE(excluded.subscribers, channel.subscribers),
                    last_checked = COALESCE(excluded.last_checked, channel.last_checked)",
                 params![
-                    c.id,
-                    c.handle,
-                    c.name,
-                    c.avatar,
+                    &c.id,
+                    &c.handle,
+                    &c.name,
+                    &c.avatar,
                     c.subscribers,
                     c.subscribed as i32,
-                    c.tags,
-                    c.folder_id,
+                    &c.tags,
+                    &c.folder_id,
                     c.last_checked,
-                    c.uploads_playlist
+                    &c.uploads_playlist
                 ],
             )?;
             Ok(())
@@ -315,21 +315,21 @@ impl Db {
                 )?;
                 for v in videos {
                     stmt.execute(params![
-                        v.id,
-                        v.channel_id,
-                        v.title,
-                        v.original_title,
-                        v.description,
+                        &v.id,
+                        &v.channel_id,
+                        &v.title,
+                        &v.original_title,
+                        &v.description,
                         v.published_at,
                         v.duration_sec,
-                        v.thumb,
+                        &v.thumb,
                         v.views,
                         v.likes,
                         v.dislikes,
                         v.is_live as i32,
                         v.is_short as i32,
-                        v.dearrow_title,
-                        v.dearrow_thumb,
+                        &v.dearrow_title,
+                        &v.dearrow_thumb,
                         chrono::Utc::now().timestamp()
                     ])?;
                 }
@@ -411,7 +411,7 @@ impl Db {
                    completed = excluded.completed,
                    updated_at = excluded.updated_at",
                 params![
-                    p.video_id,
+                    &p.video_id,
                     p.position_sec,
                     p.duration_sec,
                     p.percent,
@@ -448,12 +448,12 @@ impl Db {
                 "INSERT INTO watch_event (video_id, title, channel_name, thumb, seconds_watched, source, watched_at)
                  VALUES (?1,?2,?3,?4,?5,?6,?7)",
                 params![
-                    e.video_id,
-                    e.title,
-                    e.channel_name,
-                    e.thumb,
+                    &e.video_id,
+                    &e.title,
+                    &e.channel_name,
+                    &e.thumb,
                     e.seconds_watched,
-                    e.source,
+                    &e.source,
                     chrono::Utc::now().timestamp()
                 ],
             )?;

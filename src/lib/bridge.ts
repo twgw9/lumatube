@@ -298,3 +298,80 @@ export async function onDownloadError(
     return () => {};
   }
 }
+
+/* ── feed rows → Video ────────────────────────────────────── */
+
+/** Shape returned by `feed.rs` / `commands::get_feed` (camelCase serde). */
+export interface VideoRowDto {
+  id: string;
+  channelId: string;
+  title: string;
+  originalTitle?: string | null;
+  description?: string | null;
+  publishedAt?: number | null;
+  durationSec: number;
+  thumb?: string | null;
+  views?: number | null;
+  likes?: number | null;
+  dislikes?: number | null;
+  isLive: boolean;
+  isShort: boolean;
+  dearrowTitle?: string | null;
+  dearrowThumb?: string | null;
+}
+
+export function rowToVideo(row: VideoRowDto, channelName = "YouTube"): Video {
+  const published = row.publishedAt ? new Date(row.publishedAt * 1000).toISOString() : new Date().toISOString();
+  return {
+    id: row.id,
+    title: row.dearrowTitle ?? row.title,
+    originalTitle: row.originalTitle ?? row.title,
+    channelId: row.channelId,
+    channelName,
+    publishedAt: published,
+    durationSec: row.durationSec,
+    thumb: row.dearrowThumb ?? row.thumb ?? `https://i.ytimg.com/vi/${row.id}/hqdefault.jpg`,
+    originalThumb: row.thumb ?? undefined,
+    views: row.views ?? undefined,
+    likes: row.likes ?? undefined,
+    dislikes: row.dislikes ?? undefined,
+    description: row.description ?? undefined,
+    isLive: row.isLive,
+    isShort: row.isShort,
+    dearrow: Boolean(row.dearrowTitle || row.dearrowThumb),
+  };
+}
+
+/** Load the local feed (subscriptions, newest first). Empty array when no backend. */
+export async function loadFeed(limit = 120): Promise<Video[]> {
+  const rows = await invokeSafe<VideoRowDto[]>("get_feed", { limit });
+  if (!rows?.length) return [];
+  const channels = (await invokeSafe<{ id: string; name: string }[]>("list_channels")) ?? [];
+  const byId = new Map(channels.map((c) => [c.id, c.name]));
+  return rows.map((r) => rowToVideo(r, byId.get(r.channelId) ?? "YouTube"));
+}
+
+/** Refresh all subscribed channels via RSS, persist, return the new rows. */
+export async function refreshFeed(channelIds: string[], apiKey?: string): Promise<Video[]> {
+  const rows = await invokeSafe<VideoRowDto[]>("refresh_feed", {
+    channelIds,
+    apiKey: apiKey || null,
+  });
+  if (!rows?.length) return [];
+  return rows.map((r) => rowToVideo(r));
+}
+
+/** Resolve @handle → channel id/name/avatar using the Rust resolver. */
+export async function resolveChannel(handle: string) {
+  return invokeSafe<{ id: string; name: string; avatar?: string }>("resolve_channel", { handle });
+}
+
+/** SEARCH video via Data API (quota-aware, 100 units per call). */
+export async function searchYouTube(query: string, apiKey?: string): Promise<Video[]> {
+  const rows = await invokeSafe<VideoRowDto[]>("search_videos", {
+    query,
+    apiKey: apiKey || null,
+  });
+  if (!rows?.length) return [];
+  return rows.map((r) => rowToVideo(r));
+}

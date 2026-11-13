@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::db::{ChannelRow, Db, ProgressRow, VideoRow, WatchEventRow};
 use crate::enrich;
@@ -321,7 +321,6 @@ pub async fn update_extractor(app: AppHandle, state: State<'_, AppState>) -> App
     })
 }
 
-use tauri::Emitter;
 
 /* ══ account (optional, guest mode is the default) ═════════ */
 
@@ -358,4 +357,3 @@ pub async fn app_paths(app: AppHandle) -> AppResult<serde_json::Value> {
     }))
 }
 
-use tauri::Manager;
