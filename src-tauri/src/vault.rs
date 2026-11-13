@@ -406,7 +406,7 @@ fn parse_progress(job: &str, line: &str) -> Option<ProgressEvent> {
 }
 
 fn parse_size(s: &str) -> Option<u64> {
-    let s = s.trim();
+    let s = s.trim().trim_end_matches("/s");
     let (num, unit) = s.split_at(s.find(|c: char| c.is_alphabetic()).unwrap_or(s.len()));
     let n: f64 = num.parse().ok()?;
     let mult = match unit.to_ascii_uppercase().as_str() {
@@ -553,6 +553,7 @@ mod tests {
         assert!((event.progress - 0.423).abs() < 0.0001);
         assert_eq!(event.eta_sec, Some(12));
         assert!(event.bytes_total.unwrap() > 120_000_000);
+        assert!(event.speed_bps.unwrap() > 3_000_000);
         assert!(parse_progress("dl_test", "random log line").is_none());
     }
     #[test]
