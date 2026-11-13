@@ -4,9 +4,9 @@ export const PROJECT = {
   owner: "twgw9",
   repo: "lumatube",
   url: "https://github.com/twgw9/lumatube",
-  windowsPreview: "https://github.com/twgw9/lumatube/actions/runs/43466613113/artifacts/14059672438",
-  windowsBuild: "https://github.com/twgw9/lumatube/actions/runs/43466613113",
-  windowsCommit: "f6087e9",
+  windowsPreview: "https://github.com/twgw9/lumatube/actions/runs/43472982948/artifacts/14063100916",
+  windowsBuild: "https://github.com/twgw9/lumatube/actions/runs/43472982948",
+  windowsCommit: "c27642d",
 
 };
 export async function openExternal(url: string) {

@@ -1,3 +1,10 @@
+## Latest verified Windows preview
+
+[Download artifact ZIP](https://github.com/twgw9/lumatube/actions/runs/43472982948/artifacts/14063100916) · build commit `c27642d`.
+Windows compile, NSIS packaging, native final-path/progress parser tests and frontend regression tests passed.
+Includes explicit bundled ffmpeg discovery, finalized-file verification, SponsorBlock removal wiring and focus autoplay fix.
+Unsigned preview. Actual installation/live playback/download output still require device testing.
+
 ## Windows installer build verified
 
 Windows native compilation and NSIS packaging **passed** on GitHub Actions for commit `f6087e9`.
