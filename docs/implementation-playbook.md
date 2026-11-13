@@ -1,8 +1,10 @@
 # LocalTube — Implementation Playbook
-### Tauri v2 + Rust + React/TS · Local-first · SQLite · IFrame Player
+### Tauri v2 + Rust + React/TS · Local-first · SQLite · Native Player (yt-dlp/InnerTube)
 
-> Ye document blueprint ka **technical companion** hai. Yahan wahi cheezein hain jo code likhte waqt chahiye: folder structure, SQLite schema (copy-paste ready), quota-safe fetch strategy, SponsorBlock/DeArrow/RYD client design, download vault pipeline, sync API, aur 12-hafte roadmap.
-> Sab kuch **local-first**: koi hamara server nahi, user ka data user ki machine me.
+> Ye document blueprint ka **technical companion** hai. Yahan wahi cheezein hain jo code likhte waqt chahiye: folder structure, SQLite schema (copy-paste ready), **MediaResolver (extraction layer)**, native player, quota-safe fetch strategy, SponsorBlock/DeArrow/RYD client design, download vault pipeline, sync API, aur revised roadmap.
+> Sab kuch **local-first**: koi server nahi, data aapki machine me.
+>
+> **Scope:** personal-use app, no store distribution → **koi feature gate nahi**, sab full-power. Code modules sirf maintenance ke liye alag rakhe gaye hain.
 
 ---
 
@@ -35,7 +37,16 @@ localtube/
 │     │  ├─ dearrow.rs
 │     │  └─ ryd.rs
 │     ├─ player/                    # commands for progress, chapters
-│     ├─ vault/                     # downloads (feature-gated)
+│     ├─ resolve/                   # ← SABSE IMPORTANT: extraction layer
+│     │  ├─ mod.rs                  # MediaResolver trait + fallback chain
+│     │  ├─ ytdlp.rs                # yt-dlp -J → stream URL (primary)
+│     │  ├─ innertube.rs            # youtubei.js / InnerTube (mobile, fast)
+│     │  ├─ instance.rs             # Invidious / Piped public instance fallback
+│     │  ├─ official.rs             # official IFrame embed (last resort)
+│     │  ├─ cookies.rs              # cookies.txt import + keychain
+│     │  └─ cache.rs                # stream URL cache (expires ~6h)
+│     ├─ audio/                     # background audio service
+│     ├─ vault/                     # downloads
 │     │  ├─ ytdlp.rs                # process spawn + progress parse
 │     │  ├─ job.rs                  # queue, retry, resume
 │     │  └─ gallery.rs              # MediaStore/Photos/desktop folder
@@ -313,41 +324,82 @@ Rust me cache 7 din + global token bucket (1 rps) lagao; 429 pe exponential back
 
 ---
 
-## 7. Player bridge contract (React)
+## 7. Player contract — native engine (recommended) + iframe bridge (fallback)
 
-```ts
-// YouTubeBridge.ts
-type Cmd =
- | {c:'play'} | {c:'pause'} | {c:'seek', t:number} | {c:'rate', r:number}
- | {c:'load', v:string, t?:number} | {c:'volume', v:number} | {c:'mute', m:boolean};
+### 7.1 `MediaResolver` — extraction layer (sabse important module)
 
-export class Bridge {
-  private t = 0; private d = 0;
-  constructor(private f: HTMLIFrameElement, private post: (m:any)=>void) {
-    addEventListener('message', this.onMsg);
-    setInterval(() => this.post({c:'tick'}), 250);   // pull currentTime
-  }
-  send(cmd: Cmd) { this.f.contentWindow?.postMessage(cmd, '*'); }
-  get time() { return this.t; }
-  // A-B loop
-  ab?: { a:number; b:number };
-  onTick(t:number) { this.t = t;
-    if (this.ab && t >= this.ab.b) this.send({c:'seek', t:this.ab.a});
-  }
+```rust
+// resolve/mod.rs
+pub struct StreamInfo {
+    pub video_url: Option<String>,   // video-only ya muxed
+    pub audio_url: Option<String>,   // audio-only (background/audio-mode ke liye)
+    pub muxed_url: Option<String>,   // progressive (720p tak usually)
+    pub duration_s: f64,
+    pub formats: Vec<Format>,        // quality picker ke liye
+    pub expires_at: i64,
+    pub source: Engine,              // YtDlp | InnerTube | Instance | Official
+}
+
+#[async_trait]
+pub trait MediaResolver: Send + Sync {
+    async fn resolve(&self, video_id: &str, pref: QualityPref) -> Result<StreamInfo>;
+}
+
+/// Auto chain — ek fail ho to agla. App kabhi dead nahi.
+pub async fn resolve_auto(id: &str, pref: QualityPref, db: &Db) -> Result<StreamInfo> {
+    if let Some(hit) = db.cache.get_fresh(id)? { return Ok(hit); }
+    for engine in [Engine::YtDlp, Engine::InnerTube, Engine::Instance] {
+        match engine.resolve(id, pref).await {
+            Ok(info) => { db.cache.put(id, &info)?; return Ok(info); }
+            Err(e)    => { tracing::warn!(?engine, %e, "resolver failed, next"); }
+        }
+    }
+    Err(anyhow!("all engines failed — official embed fallback"))
 }
 ```
-**Note:** `seekTo` ±2s keyframe tolerate karta hai (YouTube docs) — UI me “snap” dikhao, warna user confuse hota hai. `rate` official limit 0.25–2x; usse zyada chahiye to Vault local file + `<video>` element (wahan 16x tak possible).
+
+**Design rules:**
+1. Sirf `resolve_auto` call karo UI se — engine kabhi hardcode nahi.
+2. Stream URL **6 ghante** cache karo (`expires_at` ke andar). Dobara resolve = extra YouTube request.
+3. `Engine` ko settings me override kar sakte ho (debug ke liye).
+4. Audio-only mode me `audio_url` lo (video stream download hi na karo → 90% data saved).
+5. Cookies sirf tab attach karo jab anonymous resolve fail ho (default anonymous).
+6. `Playback engine` setting: `Auto (recommended)` / `yt-dlp` / `InnerTube` / `Official embed`.
+
+### 7.2 Native player (Engine B)
+
+```tsx
+// Player.tsx (v1: <video> element, blob/local proxy URL)
+<video
+  src={stream.muxed_url}
+  playsInline
+  preload="metadata"
+  onTimeUpdate={e => bridge.tick(e.currentTarget.currentTime)}
+/>
+```
+- **Quality picker** → `formats` se alag URL (`<video>` reload, position preserve karke).
+- **Background audio** → Rust `audio` module (rodio/symphonia) audio-only stream chalaye; UI me "playing in background" strip. Mobile pe OS notification/media session (`tauri-plugin-*` ya native bridge).
+- **Speed** → `<video>.playbackRate` (0.0625–16x supported); ya mpv `speed`.
+- **A-B loop** → `timeupdate` pe check, `currentTime = a`.
+- **Screenshots** → canvas (blob URL same-origin, taint nahi) ya Rust ffmpeg exact frame.
+- **Volume boost** → `AudioContext` + `GainNode` (same-origin stream hona chahiye; warna Rust side decode) — ya mpv `volume-max=400`.
+- **v1.5 upgrade:** libmpv embed (`tauri-plugin-mpv` ya IPC) → hardware decode, 8K, seamless seeking, perfect audio sync. Ye upgrade player API badle bina ho jata hai agar aapne upar wala `<PlayerBridge>` abstraction rakha.
+
+### 7.3 Engine A fallback (official iframe) — sirf jab sab kuch fail ho
+
+```ts
+// YouTubeBridge.ts — sirf fallback path
+type Cmd = {c:'play'}|{c:'pause'}|{c:'seek',t:number}|{c:'rate',r:number}
+         | {c:'load',v:string,t?:number}|{c:'volume',v:number};
+// wrapper page (your HTTPS domain) se postMessage; see blueprint §1.3
+```
+**Note:** Engine A me `rate` 0.25–2x tak hi, ads aayenge, screenshot nahi hoga — isliye isko sirf "video na chale to" wala last resort rakho.
 
 ---
 
-## 8. Vault (download) pipeline — feature-gated
+## 8. Vault (download) pipeline
 
-```toml
-# Cargo.toml
-[features]
-default = []
-vault = []          # store builds me off
-```
+> Personal build: **full-power**, koi gate nahi. Module alag sirf isliye ki extractor breakage se download code player ko na tode.
 
 ```rust
 // vault/ytdlp.rs (skeleton)
@@ -381,7 +433,8 @@ while let Some(ev) = rx.recv().await {
 - iOS: `Documents/LocalTube/` + optional Photos export
 - Desktop: `~/Videos/LocalTube/<Channel>/` + `.json/.jpg/.vtt` sidecars
 
-**Consent UX:** pehli baar feature on karte waqt 1-screen notice: "Personal offline copy only. Aapki zimmedari. Store builds me available nahi." — checkbox ke bina feature unlock nahi.
+**Reliability UX:** download fail ho → job `error` + `Retry` button + "Update extractor" shortcut (yt-dlp GitHub release se binary swap). Settings me `yt-dlp --version` aur last-update date dikhao.
+**Cookies:** settings me `cookies.txt` drop zone; tell user **burner account** use karein. Cookies keychain me store karo (plaintext nahi).
 
 ---
 
@@ -418,23 +471,23 @@ merge: per-table last-write-wins on updated_at (ties → device_id lexicographic
 
 ---
 
-## 11. 12-hafte roadmap
+## 11. Revised roadmap — personal build (extraction-first)
 
 | Week | Milestone | Deliverable |
 |---|---|---|
-| 0 (3 din) | **Spike** | Tauri + embed wrapper page + postMessage bridge chalu (Error-153 proof) |
-| 1 | Skeleton | Tauri v2 + React + TanStack Router + SQLite migrations + typed IPC |
-| 2 | Ingest | RSS subscribe/resolve + folders + chronological feed |
-| 3 | Player | Custom overlay + speed memory + A-B loop + resume + keyboard |
-| 4 | Enrich | SponsorBlock + DeArrow + RYD (cached, batched, toggles) |
-| 5 | Library | History + Continue Watching + playlists + queue + FTS |
-| 6 | Import/Export | Takeout subs + watch-history + backup `.tubebak` |
-| 7 | Search | Local FTS + Data API search + autocomplete + quota meter |
-| 8 | Polish | OLED themes, distraction-free, nav customization, onboarding |
-| 9 | **MVP release** | Desktop builds (Win/mac/Linux), auto-update, telemetry-free crash log |
-| 10 | Mobile | Tauri iOS/Android shell, bottom nav, gestures, safe areas |
-| 11 | Vault beta | Download queue + gallery export + sponsor-free copy (desktop, gated) |
-| 12 | Sync beta | LAN sync → BYO cloud E2E; notes + progress across devices |
+| 0 (2–3 din) | **Extraction spike** | Rust command: yt-dlp `-J` → stream URL → `<video>` plays. **Go/no-go decision point.** |
+| 1 | Skeleton | Tauri v2 + React + TanStack Router + SQLite migrations + typed IPC + OLED theme base |
+| 2 | **MediaResolver + Player v1** | 3-engine chain, quality picker, speed 0.05–16x, A-B loop, keyboard, resume, PiP |
+| 3 | Background audio | Rust audio service + audio-only mode + media session controls |
+| 4 | Ingest | RSS subscribe/resolve + folders + chronological feed + FTS |
+| 5 | Library | history + Continue Watching + queue + playlists + progress sync hooks |
+| 6 | **Vault** | yt-dlp job queue + presets + gallery export (desktop + Android MediaStore) |
+| 7 | Enrich | SponsorBlock (skip + physical cut), DeArrow, RYD, cached/batched |
+| 8 | Import/Export | Takeout subs + watch-history + `.tubebak` backup |
+| 9 | Search + Polish | local FTS + InnerTube search + autocomplete + nav customization + distraction-free |
+| 10 | **v1 usable** | Desktop builds + auto-update + yt-dlp updater + crash log (local) |
+| 11 | Mobile | Android/iOS shell, bottom nav, gestures, gallery integration |
+| 12 | Sync + extras | LAN sync → optional encrypted cloud sync; notes/AI summary/recall cards |
 
 ---
 
@@ -448,11 +501,13 @@ merge: per-table last-write-wins on updated_at (ties → device_id lexicographic
 
 ---
 
-## 13. Legal / policy checklist (short)
+## 13. Housekeeping checklist (personal build)
 
-- [ ] YouTube branding/attribution visible in player (embed branding strip remove *nahi* karna).
-- [ ] DeArrow/RYD **attribution** UI me + settings about page me.
-- [ ] Data API: caching 30-day rule respect, no permanent public metadata mirroring, no bulk scraping beyond API.
-- [ ] Vault: consent screen, "personal use" wording, feature compile-out for store builds.
-- [ ] Privacy policy: "sab data local, koi telemetry nahi" — ye aapka marketing bhi hai.
-- [ ] Store builds: `cfg(feature="vault")` off, ad-blocking/stream-extraction code **included nahi**.
+- [ ] **yt-dlp auto-updater** kaam kar raha ho (weekly check + manual button).
+- [ ] `MediaResolver` fallback chain test: yt-dlp ko jaan-boojh kar todo → InnerTube pe switch ho.
+- [ ] Cookies **keychain** me, plaintext nahi. Burner account recommended (UI hint).
+- [ ] DeArrow/RYD **attribution** settings/about me (unka guideline hai, aur free API ka shukriya).
+- [ ] Data API: agar use karo to caching respect karo; bulk metadata API se hi, scrape se nahi.
+- [ ] Download UI me "personal offline copy" ka chhota note — kabhi kisi ko app share karo to confusion na ho.
+- [ ] Zero telemetry (default off ho hi na), crash logs local file me, user manually bheje.
+- [ ] Vault folder ka **backup/export** easy ho (files + `.json` sidecars portable).

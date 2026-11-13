@@ -3,61 +3,106 @@
 
 > **Document ka maksad:** popular open-source YouTube clients, frontends aur browser extensions ka deep research karke aapke app ke liye best features, workflows aur power-user ideas nikalna — aur unhe saaf categories me + feasibility tags ke saath rakhna.
 >
-> **Aapka core requirement (jo aapne baad me bataya):** *"sab kuch user ke computer me rahe"* — yaani **local-first**, koi hamara server nahi, user ka data user ka. Saath me **video download + SponsorBlock + downloads gallery/album me** jaise features.
+> **Aapka core requirement:** *"sab kuch user ke computer me rahe"* — yaani **local-first**, koi hamara server nahi, user ka data user ka. Saath me **video download + SponsorBlock + downloads gallery/album me** jaise features.
+>
+> **⚠️ Distribution decision (confirmed):** ye **sirf aapke personal use ka app** hai. **Na bechna hai, na Play Store / App Store pe daalna hai.** Iska matlab: *"store rejection"* wala darr khatam. Jo bhi feature aapke kaam ka hai, wo **full-power** me banana hai — koi feature jaan-boojh kar kata hua nahi rakhenge. §0.5 poora plan isi hisaab se revise kiya gaya hai.
 >
 > **Legend (Feasibility):**
 > `Easy` = hafte ke andar ban jayega · `Medium` = 1–3 hafte · `Hard` = 3+ hafte ya deep platform work
-> `[Unofficial / Risky]` = YouTube Terms of Service ke against ja sakta hai, ya official API me support nahi hai — app store rejection / account risk / breakage ka chance hai.
-> Har risky feature ke saath **safe alternative** diya gaya hai.
+> `[Unofficial / Risky]` = YouTube Terms of Service ke against ja sakta hai ya official API me support nahi hai. **Personal use me ye "ban" nahi hai — ye "kaam karega par YouTube future me tod sakta hai" matlab hai.** Risk ab sirf 2 hain: (a) feature kabhi-kabhi break ho sakta hai (yt-dlp update se fix), (b) aapke Google account pe rate-limit/strike ka theoretical risk. Har risky feature ke saath **stable fallback** diya gaya hai.
 
 ---
 
 ## 0. TL;DR — 60 second summary
 
-1. **Local-first bilkul possible hai** aur ye aapka sabse bada USP hai. SQLite (Rust side) + user ke apne cloud (WebDAV / Google Drive / iCloud) = zero server cost, full privacy. FreeTube, NewPipe, Grayjay sab yahi model chalate hain.
-2. **Playback ke liye official IFrame Player API hi lein** — ye legal + stable hai, par iske 3 hard limits hain: (a) **ads hatana possible nahi**, (b) kuch videos embed-disabled hote hain, (c) Tauri me **Error 153 (referer)** ka production issue aata hai — usko pehle din solve karna hai (§1.3).
-3. **Ad-free + background audio + full download** sirf tab possible hai jab aap unofficial extraction (NewPipe Extractor / yt-dlp / InnerTube) use karein — ye `[Unofficial / Risky]` hai. Desktop + side-loaded builds me theek, **Play Store / App Store me reject hoga**.
-4. **SponsorBlock, DeArrow, Return YouTube Dislike — teeno ka public API free hai** aur official IFrame player ke saath *perfectly legal* kaam karta hai (kyunki ye video ke andar ke segments skip karta hai, ads nahi). Ye teen aapke app ke "wow" ka core hain.
-5. **Data API v3 quota** = 10,000 units/day, `search.list` = 100 units per call. Isliye **RSS feed (15 latest per channel, no key, no quota) + aggressive SQLite caching** hi aapki feed strategy honi chahiye.
-6. **MVP 10 features** §9 me hain. **5 killer features** §10 me hain — jo FreeTube/NewPipe/Grayjay me bhi nahi hain (jaise *Watch-Time Budget OS*, *per-channel rules/SLA*, *Recall Cards*, *Local "Why am I seeing this?"*).
+1. **Local-first** bilkul possible hai: SQLite (Rust side) + aapke apne cloud (WebDAV / Google Drive) = zero server, full privacy. FreeTube, NewPipe, Grayjay sab yahi model chalate hain.
+2. **Do playback engines banao, dono ko switch-able rakho** (ye personal-use ka sabse bada upgrade hai):
+   - **Engine A — Official IFrame Player:** legal, stable, comments/likes/embed branding intact. Ads rahenge, par baaki sab (SponsorBlock, custom overlay, notes) chalega.
+   - **Engine B — Full extract (InnerTube / youtubei.js / yt-dlp):** **no ads, background audio, audio-only mode, 4K, offline download, live chat**. Ye personal use ke liye perfect hai. Isme Tauri me Error-153 ka issue bhi khud khatam ho jata hai (kyunki aap YouTube ka player use hi nahi karte — apna `<video>` element use karte ho).
+3. **Ad-free possible hai** — bas Engine B se. Side-effect: YouTube Premium features (background play, PiP, downloads) free me mil jayenge, aur **hamara custom player un features se bhi zyada dega**.
+4. **SponsorBlock / DeArrow / Return YouTube Dislike** — teeno free public API, dono engines pe kaam karte hain. Ye hi aapki app ko "premium" feel denge.
+5. **Data API v3 quota** = 10,000 units/day, `search.list` = 100 units. Isliye feed ke liye **RSS (15 latest/channel, no key, no quota)** + aggressive SQLite caching; search ke liye local FTS + optional InnerTube search (quota-free).
+6. **MVP 10 features** §10 me. **5 killer features** §11 me. Naya **§0.5 "Full-Power Plan"** hai jo batata hai personal use me kaunse 8 features unlock ho jate hain jo pehle "risky" the.
+
+---
+
+## 0.5 Full-Power Plan — personal use me kya-kya unlock ho gaya
+
+Pehle jo maine "risky / store-safe alternative" bola tha, ab wo **must-have** hai. Ye table literally aapka build order hai.
+
+| Feature | Public-store build me | **Aapke personal build me** | Technical engine |
+|---|---|---|---|
+| **Ad-free playback** | ❌ reject | ✅ **full** | Engine B (InnerTube/yt-dlp) — ad segments player hi nahi maangta |
+| **Background audio** (screen off, app minimized) | ❌ | ✅ **full** | Native audio track + Rust audio service |
+| **Audio-only mode** (data save) | ❌ | ✅ **full** | Sirf `audio` stream (m4a/opus) fetch |
+| **Offline download + Gallery** | ⚠️ desktop only | ✅ **full, PC + Phone** | yt-dlp/ffmpeg sidecar + MediaStore |
+| **Play Store / App Store** | requirement | **zarurat nahi** → sideload / `adb install` / local APK | — |
+| **Custom player (no YouTube chrome)** | limited | ✅ **100% apna** — koi branding strip, koi end-screen, koi "watch on YouTube" | Engine B |
+| **4K / highest quality** | embed decided | ✅ **format picker** — like NewPipe | yt-dlp format list |
+| **Live chat** | comments only | ✅ **live chat replay** | InnerTube live chat endpoint (free) |
+| **Age-restricted / region-locked** | ❌ error | ✅ **cookies/PO token** ke saath | yt-dlp `--cookies` + PO token provider |
+| **Google account (subs/likes/playlists)** | allowed but limited | ✅ **OAuth + cookies dono** — 2-way sync | Data API OAuth + cookies import |
+| **Transcript** | limited | ✅ **har video ka, offline cache** | yt-dlp `--write-auto-subs` / timedtext |
+| **Ad-blocking pattern** | — | ✅ **SponsorBlock + ad-skip + "intro/outro auto-cut"** download time pe | ffmpeg post-process |
+
+> **Ek line me:** ab aap **"YouTube ka apna Netflix"** bana rahe ho — apna player, apna feed, apna data, apni quality choice. Store ki koi limit nahi.
+
+### Iske 4 naye technical requirements (bina inke "full-power" adhoora hai)
+
+1. **Extraction layer** — `yt-dlp` sidecar (mature, roz update hota hai) **+** `youtubei.js`/InnerTube fallback (fast, no binary, mobile pe kaam karta hai). Dono ka common interface `MediaResolver` banao.
+2. **Cookie / PO Token jar** — user apne browser se `cookies.txt` import kare (age-restricted, member-only, "bot check" bypass ke liye). App ke andar "Sign in with Google" webview se cookies capture karna bhi possible — **par ye ToS ke terms me "automated access" ban sakta hai**; optional rakho, default off.
+3. **Native playback engine** — `<video>` element (webview) + Tauri side `symphonia`/`rodio`, ya better: **libmpv / GStreamer embed** (NewPipe-style). MPV se 8K, hardware decode, perfect seeking, speed 0.05–16x, audio normalize — sab free milta hai. `tauri-plugin-mpv`/IPC bridge se `vid=...` handle kar sakte ho.
+   - *Practical path:* v1 `<video>` + yt-dlp URL (fast), v1.5 libmpv (rock-solid).
+4. **Ad-free kaise** — Engine B me aap stream URL seedha lete ho, ad segments sirf YouTube ke player ke decision se aate hain. Aapke player me ad request hi nahi jata. **Ye "ad-blocking" nahi, "ad-request nahi karna" hai** — technically simpler aur zyada reliable.
+
+**⚠️ Personal use ka honest risk bhi:** Google ke terms "automated access" ko allow nahi karte. Practically ghar pe chalane se kuch nahi hota (FreeTube/NewPipe/Grayjay lakhon log chalate hain), par **account se cookies use karein to wo account hi risk me hai** — isliye cookies ek **"burner" Google account** se lo, apne main account se nahi. Ye advice aur nahi doonga ki ghar pe kya chalana chahiye — bas technical reality ye hai.
+
+---
 
 ---
 
 ## 1. Reality Check — pehle ye samajh lo (bahut important)
 
-### 1.1 Official embed ke saath kya possible hai, kya nahi
+### 1.1 Do engines ka comparison (ye hi aapki architecture ka core decision hai)
 
-| Cheez | Official IFrame Player API | Note |
+| Cheez | **Engine A: Official IFrame** | **Engine B: Full extract** (yt-dlp / InnerTube) |
 |---|---|---|
-| Custom UI overlay (apne buttons, gesture layer) | ✅ Haan | `controls=0` + apna React overlay; par YouTube branding/attribution remove nahi kar sakte |
-| Playback speed | ✅ Haan | `setPlaybackRate()` — safe range 0.25x–2x |
-| A-B loop | ✅ Haan | `seekTo()` + `getCurrentTime()` polling |
-| Chapters, PiP, fullscreen | ✅ Haan | Browser PiP = `requestPictureInPicture` / Tauri window |
-| **Pre-roll / mid-roll ads hatana** | ❌ **Nahi** | Player khud ads serve karta hai. Hiding them = ToS violation + quota/API ban risk |
-| Background audio (screen off) | ⚠️ Limited | Mobile OS webview pause kar deta hai. Sirf unofficial audio-stream extraction se |
-| Offline download | ❌ Nahi | Embed API offline storage support nahi karta |
-| Age-restricted / members-only / embed-disabled videos | ❌ Nahi | Player error dega — graceful UI chahiye |
-| Custom subtitles/transcript | ⚠️ Partial | `getOption('captions')` + `player.getOptions()`; full transcript ke liye Data API captions ya transcript fetch |
+| Ads | ❌ aate hain | ✅ **zero** (ad request hi nahi jata) |
+| Custom UI (apna player chrome) | ⚠️ partial overlay, YouTube branding rehti hai | ✅ **100% apna**, koi logo/endscreen nahi |
+| Playback speed | 0.25–2x | ✅ **0.05–16x** (mpv) |
+| Background audio / audio-only | ❌ | ✅ **full** (native audio service) |
+| Quality picker (360p → 4K/8K) | ❌ embed decide karta hai | ✅ **format picker** |
+| Offline download | ❌ | ✅ **full** (file + gallery) |
+| Age-restricted / members-only | ❌ error | ✅ cookies ke saath |
+| Live chat / comments | ✅ official | ⚠️ comments InnerTube se, live chat replay possible |
+| Stability / breakage | ✅ **bahut stable** | ⚠️ **har 1–3 mahine todta hai** → yt-dlp update |
+| Views/likes officially counted | ✅ | ❌ (view YouTube pe count nahi hota — aapke liye bekaar farak) |
+| Build effort | 2 din | **1–2 hafte** |
+| Tauri Error-153 issue | ⚠️ hai (fix chahiye) | ✅ **nahi hai** (aap YouTube player use hi nahi karte) |
 
-> **Seedha point:** agar aapka product promise "ad-free YouTube" hai, to officially wo *nahi* ban sakta. Aapka promise hona chahiye: **"Distraction-free, algorithmic-feed-free, data-owning YouTube"** — ye 100% legit hai aur log isi ke liye FreeTube use karte hain.
+**Decision (personal build ke liye):** Engine B **primary** banao, Engine A **fallback** rakho.
+- Engine B me extraction fail ho (YouTube todta hai, yt-dlp purana hai, live stream edge case) → us video ke liye **automatic Engine A** pe switch karo, aur user ko chhota toast: *"Fallback player me chal raha hai"*.
+- Isse aapko ad-free + background + download milta hai, **aur** jab kabhi break ho to app dead nahi hota.
 
-### 1.2 Download ka sach (aapne specifically poocha)
+### 1.2 Download ka plan (aapne specifically poocha — ab bina kisi rok-tok ke)
 
-- YouTube ToS: videos download karna (except via YouTube app's own offline feature) **allowed nahi** hai. Publicly bolna padega: *personal/offline archival use, user ki responsibility*.
-- **Play Store / App Store pe general-purpose downloader = guaranteed reject.** Desktop builds (GitHub Releases, .dmg, .AppImage, .msi) me ye chalta hai — **free + side-loaded** distribution ke liye theek hai.
-- Store-safe alternative: download feature ko **"import your own content only"** (apne channel ke videos, ya CC-licensed videos — `videoLicense=creativeCommon` filter) tak restrict karna, ya **feature flag** karke store build me off rakhna (`#[cfg(feature = "vault")]`).
-- Technical path: `yt-dlp` + `ffmpeg` **sidecar binaries** Tauri ke saath bundle karna (ye 2026 me standard pattern hai — Keepsake, video-plucker, youtube-playlist-downloader sab yahi karte hain). Android pe `youtubei.js` + `ffmpeg.wasm` fallback.
+Store nahi hai, to **koi restriction nahi**. Poora pipeline:
+- `yt-dlp` + `ffmpeg` **sidecar** binaries (Windows/macOS/Linux ke liye), Android pe `youtubei.js` + `ffmpeg.wasm` fallback.
+- **Presets:** 1080p MP4 · 4K · 720p data-saver · Audio M4A/MP3 320 · **Sponsor-free copy** (ffmpeg se segment physically cut) · Subtitles only · Playlist bulk.
+- **Gallery:** Android → MediaStore insert (`Movies/LocalTube/<Channel>/`) = phone gallery me dikhega. iOS → Documents + Photos export. Desktop → `~/Videos/LocalTube/`.
+- **Maturity note:** ye pattern 2026 me standard hai — Keepsake, video-plucker, youtube-playlist-downloader sab Tauri v2 + yt-dlp sidecar pe chal rahe hain, so aapko wheel invent nahi karna.
+- **Sirf ek practical dhyan:** yt-dlp ko **auto-update** karo (GitHub releases se binary swap) — warna 2–3 mahine me YouTube tod dega aur download band ho jayega.
 
-### 1.3 ⚠️ Pehla blocker jo aapko day-1 solve karna hai — **Tauri Error 153**
+### 1.3 ⚠️ Engine A chahiye to — **Tauri Error 153** ka fix (fallback ke liye zaroori)
 
-Tauri production build me app `tauri://localhost` protocol pe chalta hai. YouTube IFrame API ko valid **HTTP(S) Referer** chahiye. Dev me `http://localhost:1420` kaam karta hai, **production me video "Error 153 — Video player configuration error" deta hai.** Ye ek known upstream limitation hai (tauri#14422).
+Tauri production build `tauri://localhost` pe chalta hai; YouTube IFrame API ko valid **HTTP(S) Referer** chahiye. Dev me `http://localhost:1420` chalta hai, **production me "Error 153 — Video player configuration error".** Known upstream limitation (tauri#14422).
 
-**3 options (recommended order):**
-1. **Wrapper page on your own HTTPS domain** (best): ek chhoti `yt-embed.html` aapke domain pe host karo (`https://embed.yourdomain.com/yt.html?v=ID`). App usko `<iframe>` kare; wo page andar se `youtube-nocookie.com/embed/...` load karta hai. Commands (`play/pause/seek/time`) `postMessage` bridge se aate hain. YouTube ko valid real referer milta hai, IPC intact rehta hai.
-2. `tauri-plugin-localhost` (app `http://localhost:PORT` pe serve ho) — YouTube chalta hai par IPC/capabilities ko explicitly trusted likhna padta hai; maintenance heavy.
-3. Custom protocol handler jo `Referer` header inject kare — WebView2/WebKit me inconsistent. Avoid unless desperate.
+**Fix (jab Engine A implement karo — 1 din ka kaam):**
+1. **Wrapper page apni HTTPS domain pe** (best): `https://embed.yourdomain.com/yt.html?v=ID` — andar se `youtube-nocookie.com/embed/...` load kare, parent ke saath `postMessage` bridge. Real referer ✅, IPC intact ✅.
+2. `tauri-plugin-localhost` — app `http://localhost:PORT` pe serve ho; IPC capabilities explicitly trust karni padti hain.
+3. Custom protocol + `Referer` header inject — WebView2/WebKit me inconsistent, avoid.
 
-> Isko MVP se pehle spike karo (1 din). Agar ye fix na ho to poora player plan hi badalna padega.
+> **Priority:** Engine B pehle banao (Error 153 se hi nahi guzarna padega). Engine A fallback **baad me** — kyunki jab Engine B kaam karega tab aapko Engine A ki zarurat sirf rare cases me hogi.
 
 ### 1.4 Data sources ka realistic budget
 
@@ -224,8 +269,8 @@ Sab kuch **official IFrame API ke upar overlay** se — no ad-blocking, no strea
 ### 2.10 Volume Boost + Normalizer + Mono downmix
 - **Kya:** 200%–400% volume boost (Web Audio `GainNode` — note: cross-origin iframe ka audio capture nahi ho sakta, to ye **sirf local/Download Vault files pe** kaam karega), dialog normalize (-14 LUFS), mono for single earbud.
 - **Inspiration:** Enhancer for YouTube (10x boost)
-- **Feasibility:** `Medium` + `[Unofficial / Risky]` (cross-origin audio) — **safe alternative:** sirf apne downloaded/offline files pe apply karo (Rust me `ffmpeg` loudnorm).
-- **Why users love it:** Quiet interview audio, purani recordings.
+- **Feasibility:** `Medium` — **Engine B me 100% possible** (aapke paas raw audio stream/file hai → `GainNode` freely kaam karega; ya mpv me `volume-max=400`). Engine A (iframe) me cross-origin audio capture nahi hota, wahan sirf player volume 100% tak.
+- **Why users love it:** Quiet interview audio, purani recordings, phone speaker pe lecture sunna.
 
 ### 2.11 Resume Intelligence ("Continue Watching")
 - **Kya:** Har video ka progress locally save (per device + synced), "Resume from 12:40" chip, auto-skip to last position. "Rewind 10s" jab wapas aao (context reload).
@@ -236,14 +281,14 @@ Sab kuch **official IFrame API ke upar overlay** se — no ad-blocking, no strea
 ### 2.12 Screenshot & Clip Export
 - **Kya:** `s` se frame capture → PNG in gallery folder with video title+timestamp in filename; "clip 15s" (loop + screen-record via Rust/ffmpeg for vault files).
 - **Inspiration:** FreeTube screenshots
-- **Feasibility:** `Medium` (iframe canvas taint → **safe path:** capture WebView screen region natively, ya official thumbnail + timestamp card)
-- **Why users love it:** Notes/thumbnails/slides ke liye frames chahiye.
+- **Feasibility:** `Easy`–`Medium` — **Engine B me trivial**: mpv/ffmpeg se exact frame (`ffmpeg -ss <t> -i input -frames:v 1`), ya `<video>` + canvas (same-origin blob hone se taint nahi hota). Engine A me canvas taint issue hai → wahan native screen capture.
+- **Why users love it:** Notes/thumbnails/slides ke liye frames chahiye. Ab **exact 4K frame** mil sakta hai.
 
 ### 2.13 Audio-Only Mode / "Radio mode"
-- **Kya:** Video hide karke artwork + waveform + controls (podcast feel), data saving. Official embed me video still loads, **par local vault files pe true audio-only**.
+- **Kya:** Video hide karke artwork + waveform + controls (podcast feel). Sirf **audio stream** fetch hota hai (m4a/opus ~50 kbps) → **data 90% bachta hai**, battery bhi.
 - **Inspiration:** NewPipe "load only audio", YouTube Music
-- **Feasibility:** `Easy` (UI) / `[Unofficial / Risky]` real audio-only streaming
-- **Why users love it:** Data bachao, lecture sunna kaafi hai.
+- **Feasibility:** `Easy` — Engine B me stream picker se sirf audio track lo. Background playback ke saath ye combo **YouTube Premium ka #1 feature free me** hai.
+- **Why users love it:** Lecture/podcast/music — screen dekhe bina, data bachake, phone lock karke.
 
 ---
 
@@ -484,7 +529,7 @@ Sab kuch **official IFrame API ke upar overlay** se — no ad-blocking, no strea
 
 ## 9. LOCAL VAULT — Download, Gallery & Offline (aapka special ask)
 
-Ye poora section aapke "sab kuch mere computer me, download bhi ho aur gallery me bhi aaye" requirement ke liye hai. **Isko alag module** rakho (`vault` crate), taaki store builds me off ho sake.
+Ye poora section aapke "sab kuch mere computer me, download bhi ho aur gallery me bhi aaye" requirement ke liye hai. Store nahi hai, to **koi feature cut nahi** — sab full-power. Phir bhi code alag module (`vault` crate) me rakho, sirf **maintenance** ke liye (download code todta hai, player nahi todna chahiye).
 
 ### 9.1 Vault Architecture (desktop)
 ```
@@ -503,13 +548,12 @@ UI (React) ──invoke──> Rust command: vault_download(video_id, preset)
 - **Bundling:** `yt-dlp` + `ffmpeg` sidecars `src-tauri/binaries/` me, target-triple naam (`yt-dlp-x86_64-pc-windows-msvc.exe`), SHA-256 pinned. Note: macOS codesigning/notarization me sidecars ko `externalBin` list me daalna padta hai.
 - **Auto-update yt-dlp:** app khud GitHub releases se binary update kar sake (jaise youtube-playlist-downloader karta hai) — warna YouTube break karega.
 
-**`[Unofficial / Risky]` flag:** Ye ToS-restricted hai. UI me one-time consent + "personal offline copy only" note. Store builds me feature **compile-out**.
-
-**Safe alternatives (store builds):**
-1. **Own-channel downloads** (OAuth + `videos.list?mine=true`) — apne content ka backup.
-2. **Creative Commons filter** (`videoLicense=creativeCommon`).
-3. **"Save to Watch Later" offline-queue** (sirf metadata + thumbnail cached, video streamed).
-4. **External downloader handoff** — app sirf URL + timestamp external `yt-dlp` pe bhej de (user ka apna tool). Ye legally zyada safe framing hai.
+**Practical notes (personal build):**
+1. **yt-dlp auto-update** mandatory — Settings me "Update extractor" button + app start pe weekly silent check. Warna 2–3 mahine me YouTube tod dega.
+2. **Cookies import** — age-restricted / members-only / "confirm you're not a bot" ke liye `cookies.txt` (browser extension se export) settings me drop karo. **Burner Google account** use karo, main account nahi (technical risk kam rakhne ke liye).
+3. **`--download-archive`** rakho — same video dobara download na ho, aur "already in vault" instantly detect ho.
+4. **Storage math** dikhao: 1080p ≈ 250–500 MB/hour, 4K ≈ 1.5–2 GB/hour, audio ≈ 60 MB/hour — phone pe preset suggest karo accordingly.
+5. **Bulk playlist / channel download** — "pura folder offline kar do" (NewPipe-style), queue me concurrency 2, resume support.
 
 ### 9.2 Gallery Integration (phone + desktop)
 - **Android:** MediaStore me save → `Movies/LocalTube/<Channel>/<Title>.mp4` → **Gallery app me automatically dikhega**. Rust: MediaStore insert via `jni`/`tauri-plugin-fs` + `MediaScannerConnection.scanFile`. Android 10+ ke liye `MediaStore.Video` insert (no broad storage permission needed).
@@ -533,26 +577,31 @@ UI (React) ──invoke──> Rust command: vault_download(video_id, preset)
 
 ---
 
-## 10. Top 10 MVP Feature Set (v1.0 — 8–10 hafte realistic)
+## 10. Rebuilt MVP Plan (personal app — ad-free + download pehle din se)
 
-Criteria: **highest impact × lowest risk × legal** — store-release safe bhi.
+Store nahi hai, to priority badal gayi: **jo features aap roz use karoge wo pehle**, "polish" baad me. Ye 10 features v1 me hone chahiye — roughly **7–9 hafte**.
 
-| # | Feature | Kyun pehle | Effort |
+| # | Feature | Kyun pehle (personal use) | Effort |
 |---|---|---|---|
-| 1 | **Error-153-proof embed host + custom player shell** | Iske bina app hi nahi chalta | 1–2 d (spike) |
-| 2 | **Local subscriptions via RSS + channel resolve** | Product ka dil; zero quota | 4–5 d |
-| 3 | **Unified chronological feed + folders/profiles** | Anti-algorithm USP | 4 d |
-| 4 | **Local SQLite history + Continue Watching + resume** | Data ownership promise ka proof | 3 d |
-| 5 | **Custom player overlay** (speed memory, A-B loop, keyboard, PiP) | "Better than YouTube" feel | 6 d |
-| 6 | **SponsorBlock skip + category toggles** | Sabse zyada retention-driving feature | 3 d |
-| 7 | **DeArrow + RYD** (batch + cache) | Feed instantly premium dikhta hai | 2 d |
-| 8 | **Import (Takeout subs + watch-history.json) & Export backup** | Onboarding + trust | 4 d |
-| 9 | **Search (Data API + SQLite 24h cache + autocomplete)** | Completeness; quota-safe | 4 d |
-| 10 | **Themes (OLED) + distraction-free mode + queue/playlists** | Polish + daily usability | 5 d |
+| 1 | **Extraction layer (Engine B)** — yt-dlp sidecar + youtubei.js fallback, `MediaResolver` interface | Iske bina na ad-free, na download. **Yahi app ka engine hai** | 6–8 d |
+| 2 | **Native player + apna UI** (`<video>` v1 → libmpv v1.5) — speed 0.05–16x, quality picker, A-B loop, keyboard, PiP, resume | YouTube ka player hi nahi → koi ad, koi endscreen, koi "watch on YouTube" | 8 d |
+| 3 | **RSS subscriptions + folders** (zero quota) | Feed ka dil; YouTube app se behtar control | 4 d |
+| 4 | **Local SQLite: history + Continue Watching + queue** | Data apna; resume PC pe bhi, phone pe bhi | 3 d |
+| 5 | **Download Vault + Gallery** (1080p/4K/audio presets, MediaStore, `~/Videos/LocalTube`) | Aapki original requirement — **v1 me hi, v1.1 me nahi** | 6 d |
+| 6 | **SponsorBlock skip** (Engine B me auto-skip, download time pe physical cut) | Video ka asli content hi bache | 3 d |
+| 7 | **Background audio + audio-only mode** (native service) | "YouTube Premium free" ka #1 feature | 3 d |
+| 8 | **DeArrow + RYD** (batch + cache) | Feed clean + quality signal | 2 d |
+| 9 | **Import: Takeout subs + watch-history.json + backup** | Purana data naye app me | 4 d |
+| 10 | **Search** (local FTS + InnerTube/Data API + autocomplete) + **OLED theme** | Completeness + roz dekhne layak look | 5 d |
 
-**MVP me jaan-boojh kar NA rakhein:** Watch Party, AI summary, multi-source plugins, download (vault) — ye sab v1.1–v2.0. Download ko v1.1 me "desktop-only beta" ke roop me laao, store builds me off.
+**v1 me ab kya NA rakhein:** Watch Party, AI summary, multi-source plugins (PeerTube/Twitch), encrypted cloud sync. Ye v1.5–v2.0 — aur ab inke liye koi limitation nahi, bas time ki baat hai.
 
-**MVP scope creep se bachne ka rule:** pehle 10 features pe `Easy` label wale hi lein. Har feature ka "done" definition likho (schema + UI + test).
+**Order ka logic:** #1 aur #2 sab kuch decide karte hain. Agar extraction + native player chal gaya, to baaki features "add-on" hain. Agar pehle UI banao aur player baad me, to 3 hafte ka UI kaam dobara karna padega.
+
+**Realistic breakage plan (personal app ka sach):**
+- YouTube ~2–3 mahine me kuch change karta hai. Isliye **`MediaResolver` ko pluggable** rakho: (a) yt-dlp sidecar, (b) youtubei.js, (c) Invidious/Piped public instance, (d) official embed. Ek fail → next. **App kabhi dead na ho.**
+- Settings me "Playback → Engine: Auto / yt-dlp / InnerTube / Official embed" — debug ke liye gold.
+- Har breakage ka fix **1–2 ghante** ka hona chahiye, kyunki sirf extractor layer badalna hoga.
 
 ---
 
@@ -561,51 +610,64 @@ Criteria: **highest impact × lowest risk × legal** — store-release safe bhi.
 ### ⭐ 1. Attention OS (Watch-Time Budget + Per-Channel Rules/SLA)
 Sirf timer nahi — **rules engine**. Har channel/folder pe contract: `"Tech folder: sirf weekend, max 3 videos/week"`, `"Shorts: 10 min/day"`, `"Music: unlimited"`. App enforce karta hai: Monday ko Tech feed *locked* dikhta hai ("Saturday ko khulega"). Budget khatam = player pause + "aaj ka quota done" screen.
 **Kyun unique:** YouTube/Digital Wellbeing sirf total time count karte hain; *rule-level governance* koi nahi deta. Ye app ko "YouTube ka strict parent mode for adults" bana deta hai.
-**Feasibility:** `Medium` (rules JSON + enforcement middleware + local scheduler). **Store-safe 100%.**
+**Feasibility:** `Medium` (rules JSON + enforcement middleware + local scheduler).
 
 ### ⭐ 2. "Why am I seeing this?" — Transparent Local Recommender
 Home feed ka har card pe chhota chip: *"Kyunki tumne 3 Tech videos dekhe"*, *"Tech folder ka sabse purana unwatched"*, *"Tumhare notes me `rust` 5 baar aaya"*. Saath me ek **weight sliders panel** (Recency / Depth / Novelty / Same-channel-saturation) — slider ghumao, feed turant badal jaye. Sab local, koi ML API nahi.
 **Kyun unique:** Transparency = trust. Koi OSS client recommender nahi deta, aur jo deta hai (Grayjay) explain nahi karta. Ye research/demo me bhi sexy lagta hai.
-**Feasibility:** `Medium` (SQL scoring function + explain tags). **Store-safe.**
+**Feasibility:** `Medium` (SQL scoring function + explain tags).
 
 ### ⭐ 3. Recall Cards — "Video → Retention" loop (spaced repetition built in)
 Transcript + aapke notes se quiz/flashcard banao, SM-2 scheduler, daily 10-card review streak, aur har card pe "source timestamp" jump. "Aapne 40 ghante dekhe, 320 cards banaye, 74% retention."
-**Kyun unique:** Koi bhi YouTube client *learning outcome* measure nahi karta. Students/aspirants (upsc/jee/devs) ka bada market. Offline AI se auto-generate = no server cost.
-**Feasibility:** `Medium`–`Hard` (AI optional; manual cards with Easy). **Store-safe.**
+**Kyun unique:** Koi bhi YouTube client *learning outcome* measure nahi karta. Offline AI se auto-generate = no server cost, no API key.
+**Feasibility:** `Medium`–`Hard` (AI optional; manual cards = Easy).
 
 ### ⭐ 4. Bring-Your-Own-Cloud Encrypted Sync (zero backend, multi-device)
 Progress/notes/subs ka **E2E-encrypted single blob** user ke apne Google Drive / Dropbox / WebDAV / iCloud / Syncthing folder me. App ko koi server nahi chahiye, aapko bhi nahi. QR se device pairing, conflict resolution UI (per-row merge), "sync now" + background.
 **Kyun unique:** FreeTube/NewPipe me sync nahi (sabse bada complaint), LibreTube Piped account maangta hai (third-party trust). Aap **bina kisi cloud account** ke sync dete ho — privacy purists + normal users dono khush.
-**Feasibility:** `Medium` (age/XChaCha20 encryption + Drive/WebDAV API + merge logic). **Store-safe.**
+**Feasibility:** `Medium` (XChaCha20 encryption + Drive/WebDAV API + merge logic). v1 me LAN-only sync (2 din ka kaam), cloud v1.5.
 
 ### ⭐ 5. Research Bundle Export (video → self-contained knowledge artifact)
 Ek click me: video ke **downloaded clip + transcript + aapke timestamped notes + chapters + AI summary + screenshots** → ek `.zip` ya single **HTML file** jo kisi ko bhi bhejo, offline khulti hai, YouTube links bhi kaam karte hain. "Course bundle" bhi (playlist ka poora bundle).
 **Kyun unique:** Koi client notes ko *portable artifact* nahi banata. Ye teachers, students, researchers ke liye instant value + organic sharing (marketing loop).
-**Feasibility:** `Medium` (HTML templating + zip; clip export vault-dependent). Desktop-focused, **store-safe** agar clip optional.
+**Feasibility:** `Medium` (HTML templating + zip + clip export). Ab clip bhi full-power.
 
 *Bonus ideation (v2+):* **Global Time-Warp Search** ("us video me kya bola tha jo maine pichle mahine dekha" — transcript FTS across archive), **Audio-Only Podcast Mode with chapters + sleep timer**, **"Regret Index"** (post-watch 1-tap rating jo recommender ko train kare), **Focus Flight** (pomodoro + auto-pause at break).
 
 ---
 
-## 12. Feasibility legend recap + risk table
+## 12. Risk reality (personal build) — "ban" nahi, "breakage" ka plan
 
-| Risky feature | Risk | Safe alternative |
+Store ka darr gaya. Ab sirf **teen practical risks** hain aur har ek ka concrete plan hai:
+
+| Risk | Kitna realistic | Plan |
 |---|---|---|
-| Ad blocking / stream extraction | ToS violation, API/account ban, frequent breakage | Official embed + SponsorBlock (in-video segments) |
-| Video/audio download | ToS violation; store rejection | Own-channel/CC-only mode, external downloader handoff, desktop-only beta |
-| Background audio (mobile) | OS/webview pause; unofficial audio extraction | Vault-downloaded audio + native audio player (local files pe) |
-| Transcript scraping | Unofficial timedtext endpoint breakage | Official captions when available; graceful "no transcript" state |
-| Watch Party over internet | Needs TURN server (cost) | LAN-only rooms v1, WebRTC P2P v2 |
-| Local AI model bundle | App size 1–2 GB | Download-on-first-use (OGG/GGUF), or Ollama/BYOK |
-| WebView screenshot of iframe | Cross-origin canvas taint | Native window capture + thumbnail fallback |
+| **Extractor breakage** (YouTube change se yt-dlp/InnerTube band) | **100% hoga**, har 1–3 mahine | 4-layer fallback chain (yt-dlp → youtubei.js → Invidious/Piped → official embed) + yt-dlp auto-update + "Engine: Auto" setting |
+| **"Sign in to confirm you're not a bot" / 403** | Kabhi-kabhi, khaas kar VPN/datacenter IP pe | Cookies import (burner account), PO Token provider (`bgutil-ytdlp-pot-provider`), ya ghar ka normal IP. `--extractor-args` se client rotate |
+| **Google account flag** (agar cookies use karo) | Low, par zero nahi | **Burner Google account** se cookies lo, main account se nahi. Cookies sirf tab lagao jab video na chale (default: anonymous) |
+| **Local AI model size** | 1–2 GB download | Download-on-first-use (GGUF), ya Ollama. Optional feature |
+| **Watch Party internet pe** | TURN server chahiye | LAN-only v1 (muft), WebRTC P2P v2 |
+| **Screenshot iframe se (Engine A)** | canvas taint | Engine B me problem hi nahi (local stream/file) |
+
+**Golden rule:** har network/extractor call ke liye **timeout + fallback + friendly error** — app "kuch nahi chal raha" state me kabhi na jaye.
 
 ---
 
 ## 13. Aage kya (next step options)
 
-1. **Aapke liye scaffold bana doon?** Tauri v2 + React/TS + Rust SQLite (rusqlite/sqlx) + RSS ingestion + IFrame bridge + SponsorBlock module — chalu ho jaye, phir feature-by-feature.
-2. **Error-153 spike pehle** — 1 din ka prototype (wrapper page + postMessage bridge) taaki player risk khatam ho.
-3. **Schema + API contracts freeze** — `docs/implementation-playbook.md` me detail hai.
-4. **Design system** — OLED theme + 3 densities + bottom nav spec.
+Ab jab store ki limit nahi hai, mera **strong recommendation** ye order hai:
 
-> File `docs/implementation-playbook.md` me: Tauri module structure, SQLite schema (ready to paste), quota-safe request strategy, downloader job pipeline, SponsorBlock/DeArrow client code, sync API design, aur 12-hafte ka roadmap hai.
+1. **Extraction spike (2–3 din)** — ek chhota Rust/Tauri command jo yt-dlp se stream URL laaye aur `<video>` me play kare. Agar ye chal gaya, app baki sab se pehle **ad-free** ho jayega. Sabse bada risk + sabse bada reward — pehle isko test karo.
+2. **Player shell** — custom overlay + quality/speed/A-B loop + resume (2 hafte ka core kaam).
+3. **RSS feed + SQLite** — subscriptions, folders, history, Continue Watching.
+4. **Vault** — download + gallery + sponsor-cut. (Aapki original demand.)
+5. Baaki — SponsorBlock, DeArrow/RYD, import, search, themes.
+
+> `docs/implementation-playbook.md` me: Tauri module structure, SQLite schema (copy-paste ready), `MediaResolver` interface + yt-dlp pipeline, quota-safe ingest, SponsorBlock/DeArrow client code, sync design, aur revised roadmap hai.
+
+**Bolo to main abhi shuru karta hoon:**
+- **(a)** `MediaResolver` + yt-dlp extraction ka working prototype (Rust command + minimal player page) — isse pata chal jayega ki ad-free playback aapke machine pe chalta hai ya nahi.
+- **(b)** Poora Tauri v2 + React + SQLite scaffold (feed + player + vault skeleton).
+- **(c)** UI design system (OLED + player overlay + bottom nav).
+
+Mera vote: **(a)** — 2–3 din me pura project ka bhavishya clear ho jayega.
