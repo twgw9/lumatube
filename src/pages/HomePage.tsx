@@ -9,7 +9,7 @@ import { useLibrary } from '@/store/library';
 import { useSettings } from '@/store/settings';
 import { VideoGrid } from '@/components/VideoCard';
 import { Button, EmptyState, IconButton } from '@/components/ui';
-import { cn, isTauri } from '@/lib/utils';
+import { cn, isNativeApp } from '@/lib/utils';
 
 type Tab = 'personalized' | 'popular' | 'subscriptions' | 'continue';
 export function HomePage() {
@@ -30,7 +30,7 @@ export function HomePage() {
     return list.filter(v => !(settings.hideShorts && v.isShort) && !settings.channelBlocklist.includes(v.channelId) && !interests.dismissed.includes(v.id) && !settings.keywordBlocklist.some(k => k && `${v.title} ${v.channelName}`.toLowerCase().includes(k.toLowerCase())));
   }, [tab, feed.videos, settings, queries, interests.dismissed, progress, catalog]);
   const tabs: { id: Tab; label: string }[] = settings.focusMode ? [{ id: 'subscriptions', label: 'Subscriptions · Focus' }] : [{ id: 'personalized', label: 'For you' }, { id: 'subscriptions', label: 'Subscriptions' }, { id: 'popular', label: 'Explore' }, ...(settings.showContinueWatching ? [{ id: 'continue' as const, label: 'Continue watching' }] : [])];
-  const needsSetup = !isTauri() && !settings.dataApiKey.trim() && tab !== 'continue';
+  const needsSetup = !isNativeApp() && !settings.dataApiKey.trim() && tab !== 'continue';
   return <div className="mx-auto w-full max-w-[1920px] px-4 pb-16 sm:px-6">
     <h1 className="sr-only">Home video feed</h1>
     <div className="sticky top-0 z-20 -mx-4 mb-6 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)] px-4 py-3 sm:-mx-6 sm:px-6">

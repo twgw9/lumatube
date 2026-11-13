@@ -2,7 +2,7 @@ import { useInbox } from "@/store/inbox";
 import { useEffect, useRef, useState } from 'react';
 import { popularPage, searchPage, subscriptionPage } from '@/lib/youtube';
 import { refreshFeed } from '@/lib/bridge';
-import { isTauri } from '@/lib/utils';
+import { isNativeApp } from '@/lib/utils';
 import { useSettings } from '@/store/settings';
 import { useLibrary } from '@/store/library';
 import { useCatalog } from '@/store/catalog';
@@ -37,7 +37,7 @@ export function useFeed(mode: 'popular' | 'subscriptions' | 'search' | 'personal
       if (mode === 'subscriptions') {
         const channels = ids.split(',').filter(Boolean);
         if (!channels.length) { setHasMore(false); return; }
-        if (!key && isTauri()) {
+        if (!key && isNativeApp()) {
           const names = new Map(useLibrary.getState().channels.map(c => [c.id, c.name]));
           rows = (await refreshFeed(channels)).map(v => ({ ...v, channelName: names.get(v.channelId) ?? v.channelName }));
         }

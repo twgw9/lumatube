@@ -1,0 +1,60 @@
+name: Android preview APK
+on:
+  push:
+    branches: ["arena/f7a4aafd-newww"]
+    paths: ["android/**", "src/**", "public/**", "package*.json", "scripts/**", ".github/workflows/android-preview.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: TeamNewPipe/NewPipeExtractor
+          ref: 6ce85c1af05bbb854bae73f8936fd9f75bb8f9e1
+          path: .android-extractor
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: npm ci
+      - run: npm run test:regression
+      - run: npm run build
+      - name: Package restricted local WebView assets
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          cp -r dist/. android/app/src/main/assets/public/
+          python3 scripts/android-assets.py
+          cp android/NOTICE.md android/app/src/main/assets/licenses/NOTICE.md
+      - name: Build pinned extractor source into local Maven
+        run: |
+          chmod +x .android-extractor/gradlew
+          .android-extractor/gradlew -p .android-extractor :extractor:publishReleasePublicationToMavenLocal --no-daemon > extractor-build.log 2>&1 || { tail -100 extractor-build.log; python3 scripts/ci-diagnostics.py extractor-build.log; exit 1; }
+      - name: Build Android debug APK and lint
+        run: |
+          set -o pipefail
+          if ! gradle -p android :app:assembleDebug :app:lintDebug --no-daemon --console plain > android-build.log 2>&1; then
+            tail -120 android-build.log
+            python3 scripts/ci-diagnostics.py android-build.log
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LumaTube-Android-debug-preview
+          if-no-files-found: error
+          path: |
+            android/app/build/outputs/apk/debug/*.apk
+            android/NOTICE.md
+            android/LICENSE

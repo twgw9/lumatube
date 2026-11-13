@@ -1,3 +1,5 @@
+import { useSettings } from "@/store/settings";
+import { androidInvoke, isAndroidNative, onAndroidEvent } from "./android";
 import type { Chapter, Segment, SponsorCategory, Video } from "@/lib/types";
 import { demoTranscript, demoSegments } from "@/lib/mock";
 import { isTauri } from "@/lib/utils";
@@ -11,6 +13,7 @@ import { isTauri } from "@/lib/utils";
    ─────────────────────────────────────────────────────────────── */
 
 async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
+  if (isAndroidNative()) { try { return await androidInvoke<T>(cmd, args); } catch { return null; } }
   if (!isTauri()) return null;
   try {
     const { invoke } = await import("@tauri-apps/api/core");
@@ -22,6 +25,7 @@ async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promi
 }
 
 export async function invokeRequired<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (isAndroidNative()) return androidInvoke<T>(cmd, args);
   if (!isTauri()) throw new Error("This action requires the native desktop app. Browser mode cannot run the extractor or save native downloads.");
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<T>(cmd, args);
@@ -158,7 +162,7 @@ export interface DownloadRequest {
 }
 
 export async function startDownload(req: DownloadRequest, jobId: string): Promise<{ jobId: string }> {
-  return invokeRequired("start_download", { req, jobId });
+  return invokeRequired("start_download", { req, jobId, wifiOnly: useSettings.getState().wifiOnlyDownloads, notifyComplete: useSettings.getState().downloadNotifications });
 }
 export async function pauseDownload(jobId: string) {
   return invokeSafe("pause_download", { jobId });
@@ -256,6 +260,7 @@ export async function onDownloadProgress(
     stage: string;
   }) => void,
 ): Promise<() => void> {
+  if (isAndroidNative()) return onAndroidEvent<Parameters<typeof cb>[0]>("download://progress", e => { cb(e);  });
   if (!isTauri()) return () => {};
   try {
     const { listen } = await import("@tauri-apps/api/event");
@@ -269,6 +274,7 @@ export async function onDownloadProgress(
 export async function onDownloadDone(
   cb: (e: { jobId: string; filePath: string; bytesTotal: number; inGallery: boolean }) => void,
 ): Promise<() => void> {
+  if (isAndroidNative()) return onAndroidEvent<Parameters<typeof cb>[0]>("download://done", e => { cb(e); void androidInvoke("ack_download", { jobId: e.jobId }).catch(() => {}); });
   if (!isTauri()) return () => {};
   try {
     const { listen } = await import("@tauri-apps/api/event");
@@ -282,6 +288,7 @@ export async function onDownloadDone(
 export async function onDownloadError(
   cb: (e: { jobId: string; error: string }) => void,
 ): Promise<() => void> {
+  if (isAndroidNative()) return onAndroidEvent<Parameters<typeof cb>[0]>("download://error", e => { cb(e); void androidInvoke("ack_download", { jobId: e.jobId }).catch(() => {}); });
   if (!isTauri()) return () => {};
   try {
     const { listen } = await import("@tauri-apps/api/event");
@@ -346,6 +353,7 @@ export async function loadFeed(limit = 120): Promise<Video[]> {
 
 /** Refresh all subscribed channels via RSS, persist, return the new rows. */
 export async function refreshFeed(channelIds: string[], apiKey?: string): Promise<Video[]> {
+  if (isAndroidNative()) return androidInvoke<Video[]>("refresh_feed", { channelIds });
   const rows = await invokeRequired<VideoRowDto[]>("refresh_feed", {
     channelIds,
     apiKey: apiKey || null,

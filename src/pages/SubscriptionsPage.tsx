@@ -1,7 +1,7 @@
 import { useFeed } from "@/hooks/useFeed";
 import { FeedStatus } from "@/components/FeedStatus";
 import { resolvePublicChannel } from "@/lib/youtube";
-import { isTauri } from "@/lib/utils";
+import { isNativeApp } from "@/lib/utils";
 import { resolveChannel } from "@/lib/bridge";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -45,7 +45,7 @@ export function SubscriptionsPage() {
     setAdding(true); setAddError("");
     try {
       const key = useSettings.getState().dataApiKey;
-      const channel = key ? await resolvePublicChannel(channelInput, key) : isTauri() ? await resolveChannel(channelInput) : null;
+      const channel = key ? await resolvePublicChannel(channelInput, key) : isNativeApp() ? await resolveChannel(channelInput) : null;
       if (!channel || !/^UC[\w-]{22}$/.test(channel.id)) throw new Error("Channel could not be resolved. Browser mode needs a YouTube Data API key in Settings → Account.");
       useLibrary.getState().addChannel({ ...channel, subscribed: true }); setChannelInput("");
     } catch (err) { setAddError(err instanceof Error ? err.message : "Could not subscribe."); }

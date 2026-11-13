@@ -1,3 +1,4 @@
+import { isAndroidNative } from "./android";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -100,3 +101,5 @@ export function isTauri(): boolean {
 export function thumbUrl(videoId: string, quality: "default" | "hq" | "mq" | "maxres" = "hq") {
   return `https://i.ytimg.com/vi/${videoId}/${quality === "maxres" ? "maxresdefault" : quality === "mq" ? "mqdefault" : "hqdefault"}.jpg`;
 }
+
+export function isNativeApp() { return isTauri() || isAndroidNative(); }

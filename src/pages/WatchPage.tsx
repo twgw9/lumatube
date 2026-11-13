@@ -1,3 +1,4 @@
+import { isAndroidNative, androidInvoke } from "@/lib/android";
 import { useCatalog } from "@/store/catalog";
 import { videoDetails } from "@/lib/youtube";
 import { isTauri } from "@/lib/utils";
@@ -52,6 +53,7 @@ export function WatchPage() {
   const video = catalog[id] ?? { id, title: `YouTube video · ${id}`, channelId: "", channelName: "Metadata unavailable", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, publishedAt: "", durationSec: 0 };
   const related = Object.values(catalog).filter(v => v.id !== id).slice(0, 8);
   const native = isTauri();
+  const android = isAndroidNative();
   const [streamError, setStreamError] = useState("");
   const [retry, setRetry] = useState(0);
 
@@ -197,7 +199,7 @@ export function WatchPage() {
                 }}
               />
             )}
-          {!native ? <div className="aspect-video overflow-hidden rounded-xl bg-black"><iframe key={id} title={video.title} src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`} referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="h-full w-full border-0" /></div> : streamError ? <div role="alert" className="grid aspect-video place-items-center rounded-xl bg-[var(--bg-elev)] p-6 text-center"><div><p className="mb-4 text-sm text-amber-400">{streamError}</p><Button onClick={() => setRetry(r => r + 1)}>Retry extraction</Button><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" className="ml-3 text-sm underline">Watch on YouTube</a></div></div> : <PlayerSurface
+          {android ? <div className="relative grid aspect-video place-items-center overflow-hidden rounded-xl bg-black"><img src={video.thumb} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" /><Button className="relative" variant="primary" onClick={() => { void androidInvoke('play_video', { videoId: id, speed: settings.defaultSpeed, startAt: Math.floor(progress?.positionSec ?? 0), recordHistory: settings.recordHistory }).catch(err => window.alert(err instanceof Error ? err.message : String(err))); }}>Open Android player</Button></div> : !native ? <div className="aspect-video overflow-hidden rounded-xl bg-black"><iframe key={id} title={video.title} src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`} referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="h-full w-full border-0" /></div> : streamError ? <div role="alert" className="grid aspect-video place-items-center rounded-xl bg-[var(--bg-elev)] p-6 text-center"><div><p className="mb-4 text-sm text-amber-400">{streamError}</p><Button onClick={() => setRetry(r => r + 1)}>Retry extraction</Button><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" className="ml-3 text-sm underline">Watch on YouTube</a></div></div> : <PlayerSurface
             video={video}
             stream={stream}
             segments={segments}
@@ -237,7 +239,7 @@ export function WatchPage() {
               {stream?.source && <Badge>engine: {stream.source}</Badge>}
             </div>
 
-            {!native && <p className="mt-3 rounded-xl border border-[var(--border)] p-3 text-xs text-[var(--text-dim)]">Browser playback uses the official YouTube embed (ads/restrictions may apply). Native speed, SponsorBlock, progress tracking and downloads do not control this embed. If embedding is blocked, <a className="underline" href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`} target="_blank" rel="noreferrer">watch on YouTube</a>.</p>}
+            {!native && !android && <p className="mt-3 rounded-xl border border-[var(--border)] p-3 text-xs text-[var(--text-dim)]">Browser playback uses the official YouTube embed (ads/restrictions may apply). Native speed, SponsorBlock, progress tracking and downloads do not control this embed. If embedding is blocked, <a className="underline" href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`} target="_blank" rel="noreferrer">watch on YouTube</a>.</p>}
             {/* channel + actions */}
             <div className="mt-4 flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-4">
               <Link

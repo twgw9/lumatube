@@ -19,3 +19,17 @@ tsconfig.tsbuildinfo
 .smoke-run.mjs
 .smoke-out/
 third-party-notices/
+
+# Android build outputs
+.android-extractor/
+.gradle/
+android/.gradle/
+android/app/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/assets/
+android/app/src/main/assets/media/
+android/app/src/main/assets/index.html
+android/app/src/main/assets/logo.svg
+android/local.properties
+*.jks
+*.keystore

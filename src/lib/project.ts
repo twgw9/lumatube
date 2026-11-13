@@ -1,3 +1,4 @@
+import { isAndroidNative, androidInvoke } from "./android";
 export const PROJECT = {
   name: "LumaTube",
   version: "0.1.0",
@@ -11,6 +12,7 @@ export const PROJECT = {
 };
 export async function openExternal(url: string) {
   if (!(url.startsWith("https://github.com/") || url.startsWith("https://api.github.com/"))) return;
+  if (isAndroidNative()) { await androidInvoke("open_url", { url }); return; }
   if ("__TAURI_INTERNALS__" in window) {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(url);

@@ -1,4 +1,5 @@
-import { isTauri } from "./utils";
+import { isAndroidNative, androidInvoke } from "./android";
+import { isNativeApp } from "./utils";
 import { invokeRequired } from "./bridge";
 import type { Channel, Video } from './types';
 
@@ -35,6 +36,10 @@ export async function videoDetails(ids: string[], key: string, signal?: AbortSig
 }
 async function nativeDiscovery(query: string, token: string, signal?: AbortSignal): Promise<VideoPage> {
   signal?.throwIfAborted();
+  if (isAndroidNative()) {
+    const result = await androidInvoke<VideoPage>('discover_videos', { query, pageToken: token });
+    signal?.throwIfAborted(); return result;
+  }
   const page = token ? Number(token) : 0;
   if (!Number.isInteger(page) || page < 0 || page >= 12) throw new Error('Invalid discovery page. Refresh the feed.');
   const result = await invokeRequired<VideoPage>('discover_videos', { query, page });
@@ -42,12 +47,12 @@ async function nativeDiscovery(query: string, token: string, signal?: AbortSigna
   return result;
 }
 export async function popularPage(key: string, token = '', signal?: AbortSignal): Promise<VideoPage> {
-  if (!key.trim() && isTauri()) return nativeDiscovery('popular videos India', token, signal);
+  if (!key.trim() && isNativeApp()) return nativeDiscovery('popular videos India', token, signal);
   const data = await youtubeRequest('videos', { part: 'snippet,contentDetails,statistics', chart: 'mostPopular', regionCode: 'IN', maxResults: '24', ...(token ? { pageToken: token } : {}) }, key, signal);
   return { videos: (data.items ?? []).map(apiVideo).filter((v): v is Video => Boolean(v)), nextPageToken: data.nextPageToken };
 }
 export async function searchPage(query: string, key: string, token = '', signal?: AbortSignal): Promise<VideoPage> {
-  if (!key.trim() && isTauri()) return nativeDiscovery(query, token, signal);
+  if (!key.trim() && isNativeApp()) return nativeDiscovery(query, token, signal);
   const data = await youtubeRequest('search', { part: 'snippet', type: 'video', q: query, maxResults: '24', ...(token ? { pageToken: token } : {}) }, key, signal);
   const ids = (data.items ?? []).map(x => typeof x.id === 'object' ? x.id.videoId : x.id).filter((id): id is string => Boolean(id));
   return { videos: await videoDetails(ids, key, signal), nextPageToken: data.nextPageToken };

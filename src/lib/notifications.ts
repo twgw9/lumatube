@@ -1,7 +1,9 @@
+import { isAndroidNative } from "./android";
 import { isTauri, formatBytes } from "./utils";
 import { useSettings } from "@/store/settings";
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 export async function enableDownloadNotifications() {
+  if (isAndroidNative()) return true;
   if (!isTauri()) { window.alert("System download notifications require the native app, not this browser demo."); return false; }
   return await isPermissionGranted() || await requestPermission() === "granted";
 }

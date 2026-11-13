@@ -1,10 +1,11 @@
+import { isAndroidNative } from "@/lib/android";
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Download, FolderOpen, HardDrive, Info, Loader2, X } from "lucide-react";
 import type { DownloadPreset, Video } from "@/lib/types";
 import { useLibrary } from "@/store/library";
 import { useSettings } from "@/store/settings";
 import { Button, Switch } from "@/components/ui";
-import { cn, formatBytes, uid, isTauri } from "@/lib/utils";
+import { cn, formatBytes, uid, isNativeApp } from "@/lib/utils";
 import { startDownload } from "@/lib/bridge";
 
 const PRESETS: { id: DownloadPreset; label: string; sub: string; perHour: number }[] = [
@@ -33,7 +34,7 @@ export function DownloadSheet({
 }) {
   const settings = useSettings();
   const enqueue = useLibrary((s) => s.enqueueDownload);
-  const [preset, setPreset] = useState<DownloadPreset>(settings.downloadPreset);
+  const [preset, setPreset] = useState<DownloadPreset>(isAndroidNative() ? "720p" : settings.downloadPreset);
   const [showInGallery, setShowInGallery] = useState(settings.showDownloadsInGallery);
   const [sponsorCut, setSponsorCut] = useState(settings.sponsorCutOnDownload);
   const [embedThumb, setEmbedThumb] = useState(settings.embedThumbnail);
@@ -43,8 +44,9 @@ export function DownloadSheet({
 
   useEffect(() => {
     if (open) {
-      setPreset(settings.downloadPreset);
+      setPreset(isAndroidNative() ? "720p" : settings.downloadPreset);
       setShowInGallery(settings.showDownloadsInGallery);
+      if (isAndroidNative()) setSponsorCut(false);
       setDone(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -55,12 +57,13 @@ export function DownloadSheet({
   const estimate = (PRESETS.find((p) => p.id === preset)?.perHour ?? 0) * (video.durationSec / 3600);
 
   const submit = async () => {
-    if (!isTauri()) { window.alert("Downloads require the native desktop app; no download was started."); return; }
+    if (!isNativeApp()) { window.alert("Downloads require the native desktop app; no download was started."); return; }
     const used = useLibrary.getState().downloads.filter((d) => d.status !== "canceled" && d.status !== "error").reduce((n, d) => n + Math.max(d.bytesDone ?? 0, d.bytesTotal ?? 0), 0);
     if (used + estimate > settings.maxStorageGb * 1024 ** 3) {
       window.alert("Storage limit reached. Remove downloads or increase your storage cap in Settings → Downloads.");
       return;
     }
+    if (isAndroidNative() && sponsorCut) { window.alert("Sponsor-cut files are not supported in the Android preview. Turn this option off."); return; }
     setBusy(true);
     const jobId = uid("dl");
     enqueue({
@@ -119,7 +122,7 @@ export function DownloadSheet({
             Format
           </div>
           <div className="grid gap-1.5">
-            {PRESETS.map((p) => (
+            {PRESETS.filter(p => !isAndroidNative() || ["720p", "480p", "360p", "audio-m4a"].includes(p.id)).map((p) => (
               <button
                 key={p.id}
                 onClick={() => setPreset(p.id)}
@@ -149,6 +152,7 @@ export function DownloadSheet({
             ))}
           </div>
 
+          {isAndroidNative() && <p className="mt-3 text-xs leading-5 text-[var(--text-dim)]">Android uses system downloads for compatible combined MP4 streams or M4A audio. Adaptive merging, sponsor-cut files, embedded thumbnails and chapters are not supported in this preview.</p>}
           <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elev-2)] px-3">
             <Switch
               checked={showInGallery}
@@ -159,19 +163,19 @@ export function DownloadSheet({
             <Switch
               checked={sponsorCut || preset === "sponsor-free"}
               onChange={setSponsorCut}
-              disabled={preset === "sponsor-free"}
+              disabled={isAndroidNative() || preset === "sponsor-free"}
               label="Cut sponsor segments"
               description="Physically removed with ffmpeg — the file itself is clean."
             />
-            <Switch checked={embedThumb} onChange={setEmbedThumb} label="Embed thumbnail" />
-            <Switch checked={embedChapters} onChange={setEmbedChapters} label="Embed chapters" />
+            <Switch checked={!isAndroidNative() && embedThumb} disabled={isAndroidNative()} onChange={setEmbedThumb} label="Embed thumbnail" />
+            <Switch checked={!isAndroidNative() && embedChapters} disabled={isAndroidNative()} onChange={setEmbedChapters} label="Embed chapters" />
           </div>
 
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-[var(--bg-elev-2)] p-2.5 text-[11.5px] leading-relaxed text-[var(--text-mute)]">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              Save hoga: <span className="text-[var(--text-dim)]">{settings.downloadFolder}</span>
-              {settings.downloadSubfoldersByChannel && `/${video.channelName}`}
+              Save to: <span className="text-[var(--text-dim)]">{isAndroidNative() ? (showInGallery ? "Movies or Music / LumaTube" : "App-private Downloads") : settings.downloadFolder}</span>
+              {!isAndroidNative() && settings.downloadSubfoldersByChannel && `/${video.channelName}`}
               {" · "}
               ~{formatBytes(estimate)}
             </span>

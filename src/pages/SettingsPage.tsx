@@ -1,3 +1,4 @@
+import { isAndroidNative } from "@/lib/android";
 import { FeedPreferences } from "@/components/FeedPreferences";
 import { ProjectInfo } from "@/components/ProjectInfo";
 import { enableDownloadNotifications } from "@/lib/notifications";
@@ -537,7 +538,7 @@ function DownloadSettings() {
       </SettingsSection>
 
       <SettingsSection title="Download notifications">
-        <Switch checked={s.downloadNotifications} onChange={async (v) => { s.set("downloadNotifications", v && await enableDownloadNotifications()); }} label="Show download progress in notifications" description="Permission required. Shows completed size, remaining size and estimated time while the native app is running. Android background service is not yet implemented." />
+        <Switch checked={s.downloadNotifications} onChange={async (v) => { s.set("downloadNotifications", v && await enableDownloadNotifications()); }} label={isAndroidNative() ? "Notify when system download completes" : "Show download progress in notifications"} description={isAndroidNative() ? "Android DownloadManager always handles ongoing download notifications. This controls the completion notification for new downloads." : "Permission required. Shows progress and estimated time while the desktop app is running."} />
       </SettingsSection>
       <SettingsSection title="Auto & storage" icon={<ImageIcon className="h-4 w-4" />}>
         <Switch
