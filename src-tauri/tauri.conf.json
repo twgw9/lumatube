@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LumaTube",
+  "version": "0.1.0",
+  "identifier": "app.localtube.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "LumaTube",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 980,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false,
+        "decorations": true,
+        "transparent": false,
+        "dragDropEnabled": true,
+        "backgroundColor": "#000000",
+        "theme": "Dark"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost https: data: blob:; media-src 'self' asset: http://asset.localhost https: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://www.youtube.com https://i.ytimg.com https://www.googleapis.com https://sponsor.ajay.app https://dearrow.ajay.app https://returnyoutubedislikeapi.com https://feeds.youtube.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$VIDEO/**", "$DOWNLOAD/**", "$HOME/**"]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "dmg", "appimage", "deb"],
+    "icon": ["icons/icon.png"],
+    "externalBin": ["binaries/yt-dlp", "binaries/ffmpeg"],
+    "resources": [],
+    "copyright": "Personal use only",
+    "category": "Entertainment",
+    "shortDescription": "Local-first YouTube client",
+    "longDescription": "Ad-free subscription feed, downloads, notes, SponsorBlock and gallery integration — everything stored on your machine."
+  }
+}
