@@ -30,9 +30,7 @@ Set a network security policy; never accept arbitrary release asset URLs or exec
 remote scripts. Test install/update with existing user data on real devices.
 
 ## Repository rename
-Requested name: lumatube. GitHub integration returned HTTP 403 on rename.
-Owner can rename through Repository Settings → General → Repository name, then
-update src/lib/project.ts. Existing links remain current until the rename succeeds.
+Confirmed repository: https://github.com/twgw9/lumatube. Source and release links in src/lib/project.ts use this name.
 
 ## Test matrix before calling Android supported
 Android 13+ notification permission denied/granted, background/kill/reboot, pause/
