@@ -25,7 +25,7 @@ installs Rust/Node, runs regression checks, downloads upstream desktop sidecars,
 generates icons and attempts an NSIS .exe installer. It uploads an artifact only on
 success. It does NOT publish a release, sign the executable or claim Windows testing.
 The workflow must be present on GitHub before it can be manually selected under Actions.
-The native crate has not yet been compiled in this sandbox; first builds may fail.
+The native crate and NSIS installer successfully built on Windows in run 43466613113 (commit f6087e9). The sandbox itself has no Rust toolchain. Installation, live network playback and downloads remain untested on a Windows device.
 
 Artifacts: Actions → Windows preview installer → successful run →
 LumaTube-Windows-preview-unsigned. Extract the ZIP, inspect notices, then the .exe.
@@ -37,3 +37,5 @@ Review FFmpeg source/build provenance, binary hashes, licensing notices and corr
 source obligations before distributing builds. The tools are not pinned/reproducible yet.
 No Android APK is produced by this workflow. Native playback/authentication/device tests
 remain separate tasks. This is not an automatic in-app updater.
+
+Successful artifact: https://github.com/twgw9/lumatube/actions/runs/43466613113/artifacts/14059672438

@@ -25,9 +25,7 @@ for popular videos India, NOT an official trending chart. Native discovery retur
 flat metadata; dates/views/durations can be missing and are not invented.
 
 Validation: frontend build, pure ranking/preferences tests, mocked Data API tests,
-and jsdom hook tests for rotation, source-specific cursors and exhaustion. Rust
-command not compiled/exercised here (no Rust toolchain); live YouTube/network not
-verified in this sandbox. A provided command is not proof of working native playback.
+and jsdom hook tests for rotation, source-specific cursors and exhaustion. Rust command compiled successfully in the remote Windows installer build (run 43466613113), but live YouTube/network and native playback are not exercised in this sandbox. Build success is not proof of working live playback.
 
 ## Clean Home and subscription inbox
 Home now contains compact For you / Subscriptions / Explore / Continue watching tabs,

@@ -1,3 +1,13 @@
+## Windows installer build verified
+
+Windows native compilation and NSIS packaging **passed** on GitHub Actions for commit `f6087e9`.
+[Build run and installer artifact](https://github.com/twgw9/lumatube/actions/runs/43466613113).
+Artifact: `LumaTube-Windows-preview-unsigned` (ZIP, includes installer and notices).
+This is an unsigned preview, not a runtime-tested release. Live extraction, playback,
+downloaded files, Windows install/uninstall and Android still need device testing.
+Earlier notes below saying Rust was never compiled describe the previous state;
+the sandbox still has no local Rust toolchain, but remote Windows compilation now passed.
+
 ## Real-feed wiring update
 
 Home and Subscriptions no longer substitute demo videos. Browser feeds require a user-provided YouTube Data API v3 key (Settings → Account); choose Subscriptions or Popular in India. Subscribe via a channel URL, @handle or channel ID. Search, popular pages and uploads playlists have token-based Load more with deduplication, request cancellation and visible quota/network errors. API keys are stored locally (not encrypted); restrict the key in Google Cloud. Google sign-in remains unimplemented; these are public feeds, not personalised YouTube Home.
