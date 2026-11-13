@@ -26,13 +26,20 @@ pub async fn resolve_stream(
     state: State<'_, AppState>,
     video_id: String,
     preferred_quality: Option<String>,
+    engine: Option<String>,
 ) -> AppResult<resolve::StreamInfo> {
-    let prefer = match preferred_quality.as_deref() {
+    let prefer = match engine.as_deref() {
         Some("ytdlp") => "ytdlp",
         Some("innertube") => "innertube",
+        Some("official") => "official",
         _ => "auto",
     };
-    resolve::resolve(&state.db, &app, &video_id, prefer).await
+
+    let mut info = resolve::resolve(&state.db, &app, &video_id, prefer).await?;
+    // "auto" = premium behaviour (keep every stream, highest first)
+    let cap = resolve::height_cap(preferred_quality.as_deref().unwrap_or("auto"));
+    resolve::apply_cap(&mut info, cap);
+    Ok(info)
 }
 
 #[tauri::command]

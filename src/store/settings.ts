@@ -14,7 +14,12 @@ export interface Settings {
   engine: Engine;
   defaultSpeed: number;
   rememberSpeedPerChannel: boolean;
-  defaultQuality: "auto" | "1080p" | "720p" | "480p";
+  defaultQuality: string;
+  premiumStreaming: boolean;
+  preferHighestFps: boolean;
+  preloadNext: boolean;
+  ambientMode: boolean;
+  showStats: boolean;
   autoplayNext: boolean;
   resumePlayback: boolean;
   seekStepSec: number;
@@ -84,6 +89,11 @@ export const defaultSettings: Settings = {
   defaultSpeed: 1,
   rememberSpeedPerChannel: true,
   defaultQuality: "auto",
+  premiumStreaming: true,
+  preferHighestFps: true,
+  preloadNext: true,
+  ambientMode: true,
+  showStats: false,
   autoplayNext: true,
   resumePlayback: true,
   seekStepSec: 10,
@@ -133,7 +143,7 @@ export const defaultSettings: Settings = {
   syncFolder: "~/LocalTube/sync",
 
   homeTabs: [
-    { id: "t_new", label: "Aaj ke naye", kind: "feed", icon: "sparkles" },
+    { id: "t_new", label: "New today", kind: "feed", icon: "sparkles" },
     { id: "t_continue", label: "Continue watching", kind: "continue", icon: "play" },
     { id: "t_tech", label: "Tech", kind: "folder", icon: "folder", folderId: "f_tech" },
     { id: "t_music", label: "Music", kind: "folder", icon: "music", folderId: "f_music" },
@@ -152,8 +162,24 @@ export const ACCENTS = [
 ];
 
 export const SPEEDS = [
-  0.25, 0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3,
+  0.25, 0.5, 0.75, 0.9, 1, 1.15, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3, 3.5, 4,
 ];
+
+/** Nearest supported rate — <video> clamps out-of-range values silently. */
+export function clampSpeed(v: number) {
+  return Math.min(4, Math.max(0.0625, v));
+}
+
+export const QUALITY_OPTIONS = [
+  { value: "auto", label: "Auto (adaptive)" },
+  { value: "4320p", label: "4320p · 8K" },
+  { value: "2160p", label: "2160p · 4K" },
+  { value: "1440p", label: "1440p · 2K" },
+  { value: "1080p", label: "1080p · Full HD" },
+  { value: "720p", label: "720p · HD" },
+  { value: "480p", label: "480p · data saver" },
+  { value: "360p", label: "360p · low" },
+] as const;
 
 interface SettingsStore extends Settings {
   set: <K extends keyof Settings>(key: K, value: Settings[K]) => void;

@@ -147,7 +147,7 @@ export function HomePage() {
                     <p className="clamp-2 text-[13px] font-medium leading-snug">{v.title}</p>
                     <p className="mt-1 text-[11.5px] text-[var(--text-mute)]">{v.channelName}</p>
                     <p className="mt-0.5 text-[11.5px] text-[var(--accent)]">
-                      {Math.round((p?.percent ?? 0) * 100)}% dekha · {formatTime(p?.positionSec ?? 0)} se
+                      {Math.round((p?.percent ?? 0) * 100)}% watched · {formatTime(p?.positionSec ?? 0)}
                       resume
                     </p>
                   </div>
@@ -164,11 +164,11 @@ export function HomePage() {
         empty={
           <EmptyState
             icon={<Filter className="h-6 w-6" />}
-            title="Is tab me kuch nahi hai"
-            description="Filters ya folders adjust karo. Focus mode me app sirf aapke subscriptions dikhata hai."
+            title="Nothing in this tab"
+            description="Adjust filters or folders. Focus mode only shows your subscriptions."
             action={
               <Button variant="primary" onClick={() => setActiveTab("t_new")}>
-                Aaj ke naye dekho
+                See today's uploads
               </Button>
             }
           />
@@ -181,18 +181,18 @@ export function HomePage() {
           {[
             {
               icon: <TrendingUp className="h-4 w-4" />,
-              title: "Trending (skip algorithm)",
-              body: "Region ke most popular videos, bina personalization ke.",
+              title: "Trending (no algorithm)",
+              body: "Most popular videos in your region, with no personalization.",
             },
             {
               icon: <Flame className="h-4 w-4" />,
               title: "Watch time today",
-              body: "Aaj 42 min dekha · budget 60 min. Control Settings → Focus me.",
+              body: "42 min today · 60 min budget. Configure in Settings → Focus.",
             },
             {
               icon: <Sparkles className="h-4 w-4" />,
               title: "Time saved by SponsorBlock",
-              body: "Is hafte 2 ghante 14 min bacha (14 segments skipped).",
+              body: "2h 14m saved this week (14 segments skipped).",
             },
           ].map((c) => (
             <div

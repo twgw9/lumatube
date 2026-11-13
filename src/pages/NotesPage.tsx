@@ -111,8 +111,8 @@ export function NotesPage() {
       ) : (
         <EmptyState
           icon={<NotebookPen className="h-6 w-6" />}
-          title="Notes khali hain"
-          description="Video chalte waqt right panel me note likho — timestamp khud attach ho jayega. Ya player me 'Note' button dabao."
+          title="No notes yet"
+          description="Write notes in the right panel while watching — timestamps attach automatically. Or use the 'Note' button in the player."
         />
       )}
     </div>

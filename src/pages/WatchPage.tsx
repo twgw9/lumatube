@@ -70,7 +70,11 @@ export function WatchPage() {
   useEffect(() => {
     let alive = true;
     setStream(null);
-    resolveStream(video.id, settings.defaultQuality).then((s) => alive && setStream(s));
+    resolveStream(
+      video.id,
+      settings.premiumStreaming ? "auto" : settings.defaultQuality,
+      settings.engine,
+    ).then((s) => alive && setStream(s));
     fetchSkipSegments(video.id, settings.sponsorCategories).then(
       (s) => alive && s.length && setSegments(s),
     );
@@ -168,6 +172,17 @@ export function WatchPage() {
             </button>
           )}
 
+          <div className="relative">
+            {settings.ambientMode && (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -inset-6 -z-10 opacity-45 blur-3xl"
+                style={{
+                  background: `url(${video.thumb}) center/cover`,
+                  filter: "saturate(1.6) blur(48px)",
+                }}
+              />
+            )}
           <PlayerSurface
             video={video}
             stream={stream}
@@ -190,6 +205,7 @@ export function WatchPage() {
             onPrev={related.length ? () => (window.location.hash = `#/watch/${related[related.length - 1].id}`) : undefined}
             onNext={related.length ? () => (window.location.hash = `#/watch/${related[0].id}`) : undefined}
           />
+          </div>
 
           {/* title block */}
           <div className="mt-3.5">
@@ -421,7 +437,7 @@ export function WatchPage() {
                         <span className="rounded bg-[var(--accent)]/15 px-1.5 py-0.5 font-mono tabular-nums text-[var(--accent)]">
                           {formatTime(noteAt)}
                         </span>
-                        pe note
+                       
                       </span>
                       <button
                         onClick={() => setNoteAt(currentTime)}
@@ -436,7 +452,7 @@ export function WatchPage() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addNote();
                       }}
-                      placeholder="Kya important laga? (⌘+Enter to save)"
+                      placeholder="What stood out? (⌘+Enter to save)"
                       rows={3}
                       className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--bg)] p-2.5 text-[12.5px] leading-relaxed outline-none focus:border-[color-mix(in_oklab,var(--accent)_45%,var(--border))]"
                     />
@@ -477,7 +493,7 @@ export function WatchPage() {
                     </ul>
                   ) : (
                     <p className="px-2 py-8 text-center text-[12.5px] text-[var(--text-mute)]">
-                      Is video pe abhi koi note nahi. Pehla note likho — timestamp khud lag jayega.
+                      No notes on this video yet. Write the first one — the timestamp attaches itself.
                     </p>
                   )}
                 </div>
@@ -491,7 +507,7 @@ export function WatchPage() {
                     <input
                       value={transcriptQuery}
                       onChange={(e) => setTranscriptQuery(e.target.value)}
-                      placeholder="Transcript me dhoondo…"
+                      placeholder="Search transcript…"
                       className="flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-[var(--text-mute)]"
                     />
                     <span className="text-[10.5px] text-[var(--text-mute)]">
@@ -524,7 +540,7 @@ export function WatchPage() {
                       ))
                     ) : (
                       <p className="px-2 py-8 text-center text-[12.5px] text-[var(--text-mute)]">
-                        Transcript available nahi hai. Download ke waqt "subs" enable karke offline rakho.
+                        No transcript available. Enable subtitles when downloading to keep one offline.
                       </p>
                     )}
                   </div>
@@ -550,7 +566,7 @@ export function WatchPage() {
                     ))
                   ) : (
                     <p className="px-2 py-8 text-center text-[12.5px] text-[var(--text-mute)]">
-                      Is video me chapters nahi hain. Aap apne chapters notes me add kar sakte ho.
+                      This video has no chapters. Add your own as timestamped notes.
                     </p>
                   )}
                 </div>
@@ -579,7 +595,7 @@ export function WatchPage() {
                       );
                     })
                   ) : (
-                    <EmptyState title="Queue khali hai" description="Kisi bhi video pe 'Play next' dabao." />
+                    <EmptyState title="Queue is empty" description="Use 'Play next' on any video." />
                   )}
                 </div>
               )}

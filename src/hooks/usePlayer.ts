@@ -56,9 +56,14 @@ export function usePlayer({
   const [ab, setAB] = useState<ABLoop | null>(null);
   const [skipped, setSkipped] = useState<{ category: string; seconds: number; id: number } | null>(null);
   const [loopCount, setLoopCount] = useState(0);
+  const [quality, setQualityState] = useState("auto");
+  const [stats, setStats] = useState({ dropped: 0, total: 0, bitrateKbps: 0, bufferSec: 0 });
+  const [sleepAt, setSleepAt] = useState<number | null>(null); // epoch ms
+  const [loopVideo, setLoopVideo] = useState(false);
 
   const lastSave = useRef(0);
   const skipGuard = useRef(0);
+  const sleepAtRef = useRef<number | null>(null);
 
   /* ── active skip segments (skip action only) ─────────────── */
   const activeSegments = useMemo(
@@ -140,6 +145,27 @@ export function usePlayer({
     [onSpeedChange],
   );
 
+  /** Switch stream URL in place, keeping position, speed and volume. */
+  const setSource = useCallback(
+    (url: string, label: string) => {
+      const el = ref.current;
+      if (!el || !url) return;
+      const at = el.currentTime;
+      const playing = !el.paused;
+      el.src = url;
+      el.load();
+      const restore = () => {
+        el.currentTime = at;
+        el.playbackRate = speed;
+        if (playing) void el.play().catch(() => undefined);
+        el.removeEventListener("loadedmetadata", restore);
+      };
+      el.addEventListener("loadedmetadata", restore);
+      setQualityState(label);
+    },
+    [speed],
+  );
+
   const setVolume = useCallback((v: number) => {
     const el = ref.current;
     const nv = clamp(v, 0, 1);
@@ -156,6 +182,18 @@ export function usePlayer({
     if (!el) return;
     el.muted = !el.muted;
     setMuted(el.muted);
+  }, []);
+
+  /** minutes = 0 cancels */
+  const setSleepTimer = useCallback((minutes: number) => {
+    if (minutes <= 0) {
+      sleepAtRef.current = null;
+      setSleepAt(null);
+      return;
+    }
+    const at = Date.now() + minutes * 60_000;
+    sleepAtRef.current = at;
+    setSleepAt(at);
   }, []);
 
   /* ── A-B loop ────────────────────────────────────────────── */
@@ -195,6 +233,33 @@ export function usePlayer({
         setDuration(el.duration || 0);
         const buf = el.buffered;
         setBuffered(buf.length ? buf.end(buf.length - 1) : 0);
+
+        // playback health (shown in the stats panel)
+        const q = el.getVideoPlaybackQuality?.();
+        if (q) {
+          const bufferSec = Math.max(0, (buf.length ? buf.end(buf.length - 1) : 0) - t);
+          setStats({
+            dropped: q.droppedVideoFrames ?? 0,
+            total: q.totalVideoFrames ?? 0,
+            bitrateKbps:
+              el.duration && "webkitVideoDecodedByteCount" in el
+                ? Math.round(
+                    ((el as unknown as { webkitVideoDecodedByteCount: number })
+                      .webkitVideoDecodedByteCount /
+                      1024) /
+                      Math.max(1, el.duration),
+                  )
+                : 0,
+            bufferSec: Math.round(bufferSec),
+          });
+        }
+
+        /* sleep timer */
+        if (sleepAtRef.current && Date.now() >= sleepAtRef.current) {
+          el.pause();
+          setSleepAt(null);
+          sleepAtRef.current = null;
+        }
 
         /* A-B loop */
         if (ab && ab.b !== null && t >= ab.b) {
@@ -325,6 +390,11 @@ export function usePlayer({
     onWaiting: () => setStatus("loading"),
     onPlaying: () => setStatus("playing"),
     onEnded: () => {
+      if (loopVideo && ref.current) {
+        ref.current.currentTime = 0;
+        void ref.current.play().catch(() => undefined);
+        return;
+      }
       setStatus("ended");
       onProgress?.(duration, duration);
       onEnded?.();
@@ -342,6 +412,14 @@ export function usePlayer({
     ref,
     bind,
     handlers,
+    quality,
+    loopVideo,
+    setLoopVideo,
+    sleepAt,
+    setSleepTimer,
+    setSource,
+    stats,
+    setQualityState,
     status,
     time,
     duration,
@@ -367,7 +445,7 @@ export function usePlayer({
 }
 
 function nextSpeed(current: number, dir: 1 | -1): number {
-  const steps = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+  const steps = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4];
   const i = steps.findIndex((s) => Math.abs(s - current) < 0.01);
   const next = clamp((i === -1 ? steps.indexOf(1) : i) + dir, 0, steps.length - 1);
   return steps[next];

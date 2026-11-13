@@ -194,7 +194,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             </div>
           ))}
           {!commands.length && (
-            <p className="px-3 py-8 text-center text-[13px] text-[var(--text-mute)]">Kuch nahi mila</p>
+            <p className="px-3 py-8 text-center text-[13px] text-[var(--text-mute)]">No results</p>
           )}
         </div>
       </div>

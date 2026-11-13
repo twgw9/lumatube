@@ -25,9 +25,14 @@ Settings.
 
 ### Feature map
 
-- **Player** — custom controls, quality picker, 0.25×–3× speed with per-channel memory,
-  A-B loop, chapters with thumbnail strip, PiP, theater/cinema, sleep timer hooks,
-  double-tap seek, keyboard shortcuts (`space k j l ← → [ ] a b m 0-9`).
+- **Player** — custom controls, **quality picker up to 8K** (4320p/4K/1440p/1080p60),
+  **0.06×–4× speed** with per-channel memory, A-B loop, loop-video, chapters with
+  thumbnail strip, PiP, theater/cinema, **sleep timer** (15/30/45/60 min with live
+  countdown), **stats-for-nerds panel** (engine, buffer, frames, dropped, bitrate),
+  **ambient glow**, double-tap seek, keyboard shortcuts (`space k j l ← → [ ] a b m 0-9`).
+- **Premium-quality streaming** — the extractor picks the best video + best audio
+  separately (like Premium), 60 fps/HDR variants preferred, audio-only mode, and
+  adaptive quality switching that preserves your position.
 - **SponsorBlock** — category toggles, privacy hash-prefix endpoint, auto-skip with
   undo toast, "mute instead of skip" for music, physical segment cut at download time.
 - **Feed** — RSS-based subscriptions (15 latest per channel, no API key, no quota),

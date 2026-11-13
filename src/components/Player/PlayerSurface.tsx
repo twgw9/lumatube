@@ -16,6 +16,9 @@ import {
   Repeat,
   RotateCcw,
   Settings2,
+  Moon,
+  Repeat1,
+  ListPlus,
   SkipBack,
   SkipForward,
   Volume1,
@@ -87,6 +90,7 @@ export function PlayerSurface({
   const [scrubbing, setScrubbing] = useState(false);
   const [hoverPct, setHoverPct] = useState<number | null>(null);
   const [doubleFlash, setDoubleFlash] = useState<{ side: "l" | "r"; id: number } | null>(null);
+  const [statsOpen, setStatsOpen] = useState(false);
   const hideTimer = useRef<number>(0);
 
   const player = usePlayer({
@@ -253,15 +257,34 @@ export function PlayerSurface({
 
       {SkipBanner}
 
+      {/* stats for nerds */}
+      {statsOpen && (
+        <div className="absolute right-3 top-3 z-30 w-56 rounded-lg border border-white/10 bg-black/80 p-2.5 font-mono text-[10.5px] leading-relaxed text-white/80 backdrop-blur anim-pop">
+          <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-white/40">
+            <span>Stats</span>
+            <button onClick={() => setStatsOpen(false)} className="hover:text-white">
+              ×
+            </button>
+          </div>
+          <Row k="engine" v={stream?.source ?? "—"} />
+          <Row k="quality" v={player.quality} />
+          <Row k="speed" v={`${player.speed}×`} />
+          <Row k="buffer" v={`${player.stats.bufferSec}s`} />
+          <Row k="frames" v={`${player.stats.total}`} />
+          <Row k="dropped" v={`${player.stats.dropped}`} />
+          {player.stats.bitrateKbps > 0 && <Row k="bitrate" v={`${player.stats.bitrateKbps} kbps`} />}
+          <Row k="sponsors" v={`${segments.filter((x) => x.action === "skip").length} seg`} />
+        </div>
+      )}
+
       {/* center play / error / loading */}
       {player.status === "error" && (
         <div className="absolute inset-0 z-20 grid place-items-center bg-black/80 p-6 text-center">
           <div>
             <AlertTriangle className="mx-auto h-8 w-8 text-amber-400" />
-            <p className="mt-3 text-sm font-medium text-white">Yeh video play nahi ho paya</p>
+            <p className="mt-3 text-sm font-medium text-white">This video could not be played</p>
             <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-white/60">
-              Engine switch ho raha hai. Settings → Playback me engine badal kar dekho, ya extractor
-              update karo.
+              Switching engine. Try another engine in Settings → Playback, or update the extractor.
             </p>
           </div>
         </div>
@@ -269,6 +292,14 @@ export function PlayerSurface({
       {player.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
           <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/20 border-t-[var(--accent)]" />
+        </div>
+      )}
+
+      {/* sleep timer countdown */}
+      {player.sleepAt && (
+        <div className="absolute right-4 top-16 z-30 flex items-center gap-1.5 rounded-full border border-white/15 bg-black/70 px-2.5 py-1 text-[11px] font-medium text-white/85 backdrop-blur">
+          <Moon className="h-3 w-3 text-[var(--accent)]" />
+          <SleepCountdown at={player.sleepAt} onDone={() => player.setSleepTimer(0)} />
         </div>
       )}
 
@@ -496,7 +527,12 @@ export function PlayerSurface({
                         : "text-white/80 hover:bg-white/10",
                     )}
                   >
-                    {s}×
+                    <span className="flex items-center gap-1">
+                      {s}×
+                      {s === 4 && (
+                        <span className="rounded bg-white/15 px-1 text-[9px] uppercase">max</span>
+                      )}
+                    </span>
                     {player.speed === s && <Check className="h-3.5 w-3.5" />}
                   </button>
                 ))}
@@ -524,20 +560,94 @@ export function PlayerSurface({
             </IconButton>
             {showSettings && (
               <div className="absolute bottom-11 right-0 z-40 w-56 rounded-xl border border-white/10 bg-black/95 p-2 text-[12.5px] text-white/80 shadow-2xl backdrop-blur anim-pop">
-                <div className="px-2 pb-1.5 pt-1 text-[11px] uppercase tracking-wide text-white/40">
-                  Quality
+                <div className="flex items-center justify-between px-2 pb-1.5 pt-1 text-[11px] uppercase tracking-wide text-white/40">
+                  <span>Quality</span>
+                  <span className="text-white/30">{player.quality}</span>
                 </div>
-                {(stream?.qualities ?? []).map((q) => (
-                  <button
-                    key={q.label}
-                    className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10"
-                  >
-                    {q.label}
-                    {q.height >= 1080 && (
-                      <span className="rounded bg-white/15 px-1 text-[10px] uppercase">HD</span>
-                    )}
-                  </button>
-                ))}
+                <button
+                  onClick={() => {
+                    const first = stream?.qualities?.[0];
+                    if (first) player.setSource(first.url, first.label);
+                    setShowSettings(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10",
+                    player.quality === "auto" && "text-[var(--accent)]",
+                  )}
+                >
+                  Auto
+                  <span className="text-[10px] text-white/40">adaptive</span>
+                </button>
+                {[...(stream?.qualities ?? [])]
+                  .sort((a, b) => b.height - a.height)
+                  .map((q) => (
+                    <button
+                      key={q.label}
+                      onClick={() => {
+                        player.setSource(q.url, q.label);
+                        setShowSettings(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10",
+                        player.quality === q.label && "text-[var(--accent)]",
+                      )}
+                    >
+                      {q.label}
+                      <span className="flex items-center gap-1">
+                        {q.height >= 2160 && (
+                          <span className="rounded bg-[var(--accent)]/25 px-1 text-[9.5px] font-bold uppercase text-[var(--accent)]">
+                            Premium
+                          </span>
+                        )}
+                        {q.height >= 1080 && q.height < 2160 && (
+                          <span className="rounded bg-white/15 px-1 text-[9.5px] uppercase">HD</span>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                <div className="my-1.5 h-px bg-white/10" />
+                <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-white/40">
+                  Playback
+                </div>
+                <button
+                  onClick={() => player.setLoopVideo(!player.loopVideo)}
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Repeat1 className="h-3.5 w-3.5" /> Loop this video
+                  </span>
+                  <span className={player.loopVideo ? "text-[var(--accent)]" : "text-white/40"}>
+                    {player.loopVideo ? "on" : "off"}
+                  </span>
+                </button>
+                <div className="px-2 pb-1 pt-1.5 text-[11px] uppercase tracking-wide text-white/40">
+                  Sleep timer
+                </div>
+                <div className="flex flex-wrap gap-1 px-1 pb-1">
+                  {[0, 15, 30, 45, 60].map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => player.setSleepTimer(m)}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[11px] transition-colors",
+                        (m === 0 && !player.sleepAt) ||
+                          (player.sleepAt && m > 0 && Math.abs(player.sleepAt - Date.now()) < m * 62_000)
+                          ? "bg-[var(--accent)] text-black"
+                          : "bg-white/10 hover:bg-white/20",
+                      )}
+                    >
+                      {m === 0 ? "Off" : `${m}m`}
+                    </button>
+                  ))}
+                </div>
+                <div className="my-1.5 h-px bg-white/10" />
+                <button
+                  onClick={() => setStatsOpen((v) => !v)}
+                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10"
+                >
+                  Stats for nerds
+                  <span className="text-[10px] text-white/40">{statsOpen ? "on" : "off"}</span>
+                </button>
                 <div className="my-1.5 h-px bg-white/10" />
                 <button
                   className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/10"
@@ -592,5 +702,33 @@ export function PlayerSurface({
         </div>
       </div>
     </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-white/40">{k}</span>
+      <span className="truncate text-white/85">{v}</span>
+    </div>
+  );
+}
+
+function SleepCountdown({ at, onDone }: { at: number; onDone: () => void }) {
+  const [left, setLeft] = useState(() => Math.max(0, at - Date.now()));
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const ms = Math.max(0, at - Date.now());
+      setLeft(ms);
+      if (ms <= 0) onDone();
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [at, onDone]);
+  const m = Math.floor(left / 60000);
+  const sLeft = Math.floor((left % 60000) / 1000);
+  return (
+    <span className="tabular-nums">
+      {m}:{String(sLeft).padStart(2, "0")}
+    </span>
   );
 }

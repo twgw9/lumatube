@@ -19,7 +19,7 @@ import {
   User,
   Wifi,
 } from "lucide-react";
-import { useSettings, ACCENTS, SPEEDS, defaultSettings } from "@/store/settings";
+import { useSettings, ACCENTS, SPEEDS, QUALITY_OPTIONS } from "@/store/settings";
 import { useLibrary } from "@/store/library";
 import {
   Badge,
@@ -121,7 +121,7 @@ function AppearanceSettings() {
   const s = useSettings();
   return (
     <>
-      <SettingsSection title="Theme" description="OLED true-black default hai — battery aur eyes dono ke liye." icon={<Palette className="h-4 w-4" />}>
+      <SettingsSection title="Theme" description="OLED true-black is the default — kinder on battery and eyes." icon={<Palette className="h-4 w-4" />}>
         <div className="grid grid-cols-2 gap-2 py-3.5 sm:grid-cols-4">
           {(
             [
@@ -153,7 +153,7 @@ function AppearanceSettings() {
           ))}
         </div>
 
-        <Row label="Accent colour" description="Buttons, progress bars aur highlights.">
+        <Row label="Accent colour" description="Buttons, progress bars and highlights.">
           <div className="flex gap-1.5">
             {ACCENTS.map((a) => (
               <button
@@ -171,7 +171,7 @@ function AppearanceSettings() {
           </div>
         </Row>
 
-        <Row label="Card density" description="Kitne videos ek screen pe dikhein.">
+        <Row label="Card density" description="How many videos fit on screen.">
           <Segmented
             value={s.density}
             onChange={(v) => s.set("density", v)}
@@ -188,17 +188,17 @@ function AppearanceSettings() {
           checked={s.motion === "reduced"}
           onChange={(v) => s.set("motion", v ? "reduced" : "full")}
           label="Reduce motion"
-          description="Animations kam karo (accessibility)."
+          description="Reduce animations (accessibility)."
         />
         <Switch
           checked={s.showOriginalTitles}
           onChange={(v) => s.set("showOriginalTitles", v)}
-          label="Original clickbait titles dikhao"
-          description="DeArrow clean titles ke bajaye YouTube ka original title."
+          label="Show original clickbait titles"
+          description="Use the original YouTube title instead of DeArrow's cleaned version."
         />
       </SettingsSection>
 
-      <SettingsSection title="Home tabs" description="Apne hisaab se home screen banao.">
+      <SettingsSection title="Home tabs" description="Build your own home screen.">
         <div className="space-y-1.5 py-3">
           {s.homeTabs.map((t) => (
             <div key={t.id} className="flex items-center gap-2 rounded-lg bg-[var(--bg-elev-2)] px-2.5 py-1.5">
@@ -256,10 +256,10 @@ function PlaybackSettings() {
     <>
       <SettingsSection
         title="Engine"
-        description="Auto best hai — extract fail ho to agla engine khud try hota hai."
+        description="Auto is best — if one extractor fails the next is tried automatically."
         icon={<MonitorPlay className="h-4 w-4" />}
       >
-        <Row label="Playback engine" description="Means everything: ads, background audio, download.">
+        <Row label="Playback engine" description="Controls ads, background audio and downloads.">
           <Select
             value={s.engine}
             onChange={(v) => s.set("engine", v)}
@@ -272,20 +272,45 @@ function PlaybackSettings() {
             className="w-56"
           />
         </Row>
-        <Row label="Default quality">
+        <Row label="Preferred quality" description="Up to 8K — depends on what the uploader provides.">
           <Select
             value={s.defaultQuality}
             onChange={(v) => s.set("defaultQuality", v)}
-            options={[
-              { value: "auto", label: "Auto (adaptive)" },
-              { value: "1080p", label: "1080p" },
-              { value: "720p", label: "720p" },
-              { value: "480p", label: "480p (data saver)" },
-            ]}
-            className="w-44"
+            options={QUALITY_OPTIONS.map((q) => ({ value: q.value, label: q.label }))}
+            className="w-52"
           />
         </Row>
-        <Row label="Default speed" description="Per-channel speed yaad rakhne ke liye bhi on karo.">
+        <Switch
+          checked={s.premiumStreaming}
+          onChange={(v) => s.set("premiumStreaming", v)}
+          label="Premium streaming (highest available)"
+          description="Picks the best video + audio streams per video, like YouTube Premium quality. Off = caps at your preferred quality."
+        />
+        <Switch
+          checked={s.preferHighestFps}
+          onChange={(v) => s.set("preferHighestFps", v)}
+          label="Prefer highest frame rate"
+          description="60 fps / HDR variants win over lower-fps streams at the same resolution."
+        />
+        <Switch
+          checked={s.preloadNext}
+          onChange={(v) => s.set("preloadNext", v)}
+          label="Preload the next video"
+          description="Resolves the queued video ahead of time so playback starts instantly."
+        />
+        <Switch
+          checked={s.ambientMode}
+          onChange={(v) => s.set("ambientMode", v)}
+          label="Ambient glow"
+          description="A blurred halo of the thumbnail behind the player (like YouTube's ambient mode)."
+        />
+        <Switch
+          checked={s.showStats}
+          onChange={(v) => s.set("showStats", v)}
+          label="Show stats panel by default"
+          description="Engine, quality, buffer, dropped frames, bitrate."
+        />
+        <Row label="Default speed" description="Turn on to also remember speed per channel.">
           <Select
             value={String(s.defaultSpeed)}
             onChange={(v) => s.set("defaultSpeed", Number(v))}
@@ -296,12 +321,12 @@ function PlaybackSettings() {
         <Switch
           checked={s.rememberSpeedPerChannel}
           onChange={(v) => s.set("rememberSpeedPerChannel", v)}
-          label="Per-channel speed yaad rakho"
+          label="Remember speed per channel"
           description="Tech channels 1.5×, music 1× — automatic."
         />
         <Switch checked={s.resumePlayback} onChange={(v) => s.set("resumePlayback", v)} label="Resume from where I left" />
-        <Switch checked={s.autoplayNext} onChange={(v) => s.set("autoplayNext", v)} label="Autoplay next" description="Focus mode me ye hamesha off rehta hai." />
-        <Row label="Seek step" description="Arrow keys se kitna sekand aage-peeche.">
+        <Switch checked={s.autoplayNext} onChange={(v) => s.set("autoplayNext", v)} label="Autoplay next" description="Always off in focus mode." />
+        <Row label="Seek step" description="How far arrow keys jump.">
           <Select
             value={String(s.seekStepSec)}
             onChange={(v) => s.set("seekStepSec", Number(v))}
@@ -311,8 +336,8 @@ function PlaybackSettings() {
         </Row>
       </SettingsSection>
 
-      <SettingsSection title="SponsorBlock" description="Community segments — intro, sponsor, outro sab skip." icon={<Sparkles className="h-4 w-4" />}>
-        <Switch checked={s.sponsorBlock} onChange={(v) => s.set("sponsorBlock", v)} label="SponsorBlock on" />
+      <SettingsSection title="SponsorBlock" description="Community segments — intro, sponsor and outro all skipped." icon={<Sparkles className="h-4 w-4" />}>
+        <Switch checked={s.sponsorBlock} onChange={(v) => s.set("sponsorBlock", v)} label="SponsorBlock" />
         <div className="grid grid-cols-2 gap-1.5 py-3">
           {["sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "filler", "music_offtopic"].map((cat) => {
             const on = s.sponsorCategories.includes(cat);
@@ -341,8 +366,8 @@ function PlaybackSettings() {
         <Switch
           checked={s.sponsorMuteInsteadOfSkip}
           onChange={(v) => s.set("sponsorMuteInsteadOfSkip", v)}
-          label="Skip ke bajaye mute"
-          description="Music videos ke liye better — gaana cut nahi hota."
+          label="Mute instead of skip"
+          description="Better for music videos — the song never gets cut."
         />
       </SettingsSection>
 
@@ -351,13 +376,13 @@ function PlaybackSettings() {
           checked={s.dearrow}
           onChange={(v) => s.set("dearrow", v)}
           label="DeArrow titles & thumbnails"
-          description="Clickbait badal ke clean title + representative thumbnail."
+          description="Swaps clickbait for a clean title + representative thumbnail."
         />
         <Switch
           checked={s.returnYoutubeDislike}
           onChange={(v) => s.set("returnYoutubeDislike", v)}
           label="Return YouTube Dislike"
-          description="Community API se dislike count (attribution shown)."
+          description="Dislike counts from the community API (attribution shown)."
         />
       </SettingsSection>
     </>
@@ -374,29 +399,29 @@ function FocusSettings() {
     <>
       <SettingsSection
         title="Focus mode"
-        description="Ek switch: recommendations off, comments off, autoplay off, sirf aapke subscriptions."
+        description="One switch: recommendations off, comments off, autoplay off, subscriptions only."
         icon={<Focus className="h-4 w-4" />}
       >
         <Switch
           checked={s.focusMode}
           onChange={(v) => s.set("focusMode", v)}
           label="Focus mode (⌘/)"
-          description="Home sirf aapke subscriptions dikhata hai. Up-next band."
+          description="Home shows only your subscriptions. Up-next disabled."
         />
-        <Switch checked={s.hideRecommendations} onChange={(v) => s.set("hideRecommendations", v)} label="Recommendations hide karo" description="Home + watch page ke recommended videos." />
-        <Switch checked={s.hideComments} onChange={(v) => s.set("hideComments", v)} label="Comments hide karo" />
-        <Switch checked={s.hideShorts} onChange={(v) => s.set("hideShorts", v)} label="Shorts hide karo" description="Koi vertical Shorts feed nahi." />
-        <Switch checked={s.hideEndScreen} onChange={(v) => s.set("hideEndScreen", v)} label="End screen / cards hide karo" />
-        <Switch checked={s.hideLiveChat} onChange={(v) => s.set("hideLiveChat", v)} label="Live chat hide karo" />
+        <Switch checked={s.hideRecommendations} onChange={(v) => s.set("hideRecommendations", v)} label="Hide recommendations" description="Recommended videos on Home and the watch page." />
+        <Switch checked={s.hideComments} onChange={(v) => s.set("hideComments", v)} label="Hide comments" />
+        <Switch checked={s.hideShorts} onChange={(v) => s.set("hideShorts", v)} label="Hide Shorts" description="No vertical Shorts feed at all." />
+        <Switch checked={s.hideEndScreen} onChange={(v) => s.set("hideEndScreen", v)} label="Hide end screens / cards" />
+        <Switch checked={s.hideLiveChat} onChange={(v) => s.set("hideLiveChat", v)} label="Hide live chat" />
         <Switch
           checked={s.autoPlayDisabledInFocus}
           onChange={(v) => s.set("autoPlayDisabledInFocus", v)}
-          label="Focus mode me autoplay off"
+          label="Disable autoplay in focus mode"
         />
       </SettingsSection>
 
-      <SettingsSection title="Daily watch limit" description="Local only budget — app khud pause kar dega.">
-        <Row label="Daily limit" description="0 = koi limit nahi.">
+      <SettingsSection title="Daily watch limit" description="Local-only budget — the app pauses itself.">
+        <Row label="Daily limit" description="0 = no limit.">
           <Select
             value={String(s.dailyWatchLimitMin)}
             onChange={(v) => s.set("dailyWatchLimitMin", Number(v))}
@@ -409,7 +434,7 @@ function FocusSettings() {
         </Row>
       </SettingsSection>
 
-      <SettingsSection title="Blocklist" description="Feed se permanently hatao.">
+      <SettingsSection title="Blocklist" description="Remove things from your feed permanently.">
         <div className="py-3">
           <p className="mb-1.5 text-[12px] font-medium text-[var(--text-dim)]">Keywords</p>
           <div className="flex gap-2">
@@ -491,7 +516,7 @@ function DownloadSettings() {
     <>
       <SettingsSection
         title="Where files go"
-        description="Path, folder structure aur gallery visibility."
+        description="Path, folder structure and gallery visibility."
         icon={<HardDrive className="h-4 w-4" />}
       >
         <Row label="Download folder">
@@ -504,23 +529,23 @@ function DownloadSettings() {
         <Switch
           checked={s.downloadSubfoldersByChannel}
           onChange={(v) => s.set("downloadSubfoldersByChannel", v)}
-          label="Channel ke hisaab se folders"
+          label="Subfolder per channel"
           description="~/Videos/LocalTube/CodeWithHarry/video.mp4"
         />
         <Switch
           checked={s.showDownloadsInGallery}
           onChange={(v) => s.set("showDownloadsInGallery", v)}
-          label="Gallery me dikhao"
-          description="ON = phone gallery / Photos me file dikhegi. OFF = sirf app ke andar private."
+          label="Show in gallery"
+          description="ON = the file appears in your phone gallery / Photos. OFF = private to the app."
         />
         <Switch
           checked={s.embedThumbnail}
           onChange={(v) => s.set("embedThumbnail", v)}
-          label="Thumbnail embed karo"
-          description="Gallery/Plex me poster dikhega, black box nahi."
+          label="Embed thumbnail"
+          description="Shows a poster in your gallery/Plex instead of a black box."
         />
-        <Switch checked={s.embedChapters} onChange={(v) => s.set("embedChapters", v)} label="Chapters embed karo" />
-        <Switch checked={s.embedSubs} onChange={(v) => s.set("embedSubs", v)} label="Subtitles download karo" />
+        <Switch checked={s.embedChapters} onChange={(v) => s.set("embedChapters", v)} label="Embed chapters" />
+        <Switch checked={s.embedSubs} onChange={(v) => s.set("embedSubs", v)} label="Download subtitles" />
       </SettingsSection>
 
       <SettingsSection title="Quality & queue" icon={<Download className="h-4 w-4" />}>
@@ -535,21 +560,21 @@ function DownloadSettings() {
             className="w-20"
           />
         </Row>
-        <Switch checked={s.sponsorCutOnDownload} onChange={(v) => s.set("sponsorCutOnDownload", v)} label="Sponsor segments file se kaat do" description="ffmpeg se physically cut — file hi clean aayegi." />
-        <Switch checked={s.wifiOnlyDownloads} onChange={(v) => s.set("wifiOnlyDownloads", v)} label="Sirf Wi-Fi pe download" />
+        <Switch checked={s.sponsorCutOnDownload} onChange={(v) => s.set("sponsorCutOnDownload", v)} label="Cut sponsor segments from the file" description="Physically cut with ffmpeg — the file itself is clean." />
+        <Switch checked={s.wifiOnlyDownloads} onChange={(v) => s.set("wifiOnlyDownloads", v)} label="Download on Wi-Fi only" />
       </SettingsSection>
 
       <SettingsSection title="Auto & storage" icon={<ImageIcon className="h-4 w-4" />}>
         <Switch
           checked={s.autoDownloadNewVideos}
           onChange={(v) => s.set("autoDownloadNewVideos", v)}
-          label="Naye videos auto-download"
-          description="Subscriptions ke naye videos offline ke liye (travel mode)."
+          label="Auto-download new videos"
+          description="Keep new subscription uploads offline (travel mode)."
         />
         <Row label="Auto-download preset">
           <Select value={s.autoDownloadPreset} onChange={(v) => s.set("autoDownloadPreset", v as DownloadPreset)} options={PRESETS} className="w-52" />
         </Row>
-        <Row label="Storage cap" description={`Abhi ${formatBytes(used)} use hua hai.`}>
+        <Row label="Storage cap" description={`Currently ${formatBytes(used)} used.`}>
           <Select
             value={String(s.maxStorageGb)}
             onChange={(v) => s.set("maxStorageGb", Number(v))}
@@ -571,17 +596,17 @@ function ExtractorCard() {
   const check = async () => setStatus(await getExtractorStatus());
 
   return (
-    <SettingsSection title="Extractor health" description="YouTube todta hai — yahan se yt-dlp update karo.">
+    <SettingsSection title="Extractor health" description="YouTube breaks things — update yt-dlp from here.">
       <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
         <div className="text-[12.5px] text-[var(--text-dim)]">
           {status ? (
             <>
               yt-dlp {status.version} ·{" "}
               {status.updatedAt ? new Date(status.updatedAt).toLocaleDateString() : "never updated"}
-              {!status.available && <span className="ml-2 text-amber-400">(desktop build me active)</span>}
+              {!status.available && <span className="ml-2 text-amber-400">(active in the desktop build)</span>}
             </>
           ) : (
-            "Status check karo"
+            "Check status"
           )}
         </div>
         <div className="flex gap-2">
@@ -614,7 +639,7 @@ function AccountSettings() {
 
   return (
     <>
-      <SettingsSection title="Google account" description="Optional — subscriptions, playlists aur likes sync ke liye." icon={<User className="h-4 w-4" />}>
+      <SettingsSection title="Google account" description="Optional — for syncing subscriptions, playlists and likes." icon={<User className="h-4 w-4" />}>
         <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
           <div>
             <p className="text-[13px] font-medium">
@@ -622,8 +647,8 @@ function AccountSettings() {
             </p>
             <p className="mt-0.5 text-[12px] text-[var(--text-mute)]">
               {s.googleConnected
-                ? "Subscriptions + playlists + likes sync active."
-                : "Guest mode chal raha hai — sab kuch local hai. Login optional hai."}
+                ? "Subscriptions + playlists + likes are syncing."
+                : "Guest mode — everything stays local. Sign-in is optional."}
             </p>
           </div>
           {s.googleConnected ? (
@@ -660,9 +685,9 @@ function AccountSettings() {
           checked={s.syncEnabled}
           onChange={(v) => s.set("syncEnabled", v)}
           label="Encrypted cross-device sync"
-          description="Progress, notes, subscriptions — apne hi cloud folder me (zero backend)."
+          description="Progress, notes and subscriptions in your own cloud folder (zero backend)."
         />
-        <Row label="Sync folder" description="Google Drive / Dropbox / OneDrive ka local folder bhi chalega.">
+        <Row label="Sync folder" description="A local Google Drive / Dropbox / OneDrive folder works too.">
           <Input
             value={s.syncFolder}
             onChange={(e) => s.set("syncFolder", e.target.value)}
@@ -673,9 +698,9 @@ function AccountSettings() {
 
       <SettingsSection
         title="API keys (optional)"
-        description="Khali chhod do to app phir bhi chalta hai — bas YouTube search quota-limited rahega."
+        description="Leave blank and the app still works — YouTube search just stays quota-limited."
       >
-        <Row label="YouTube Data API key" description="Search + duration metadata. Google Cloud se free milta hai.">
+        <Row label="YouTube Data API key" description="Search + duration metadata. Free from Google Cloud.">
           <Input
             value={s.dataApiKey}
             onChange={(e) => s.set("dataApiKey", e.target.value)}
@@ -683,7 +708,7 @@ function AccountSettings() {
             className="w-64 font-mono text-[12px]"
           />
         </Row>
-        <Row label="OAuth client ID" description="Google login ke liye (subscriptions/likes sync).">
+        <Row label="OAuth client ID" description="For Google sign-in (subscriptions/likes sync).">
           <Input
             value={s.oauthClientId}
             onChange={(e) => s.set("oauthClientId", e.target.value)}
@@ -696,10 +721,10 @@ function AccountSettings() {
       <SettingsSection title="Privacy" icon={<Shield className="h-4 w-4" />}>
         <div className="space-y-1.5 py-3.5 text-[12.5px] text-[var(--text-dim)]">
           {[
-            "Koi telemetry nahi. Koi analytics nahi.",
-            "History, notes, downloads — sab aapki machine pe SQLite me.",
-            "Google login sirf tab use hota hai jab aap connect karo.",
-            "SponsorBlock requests hash-prefix se jati hain (poora video ID nahi).",
+            "No telemetry. No analytics.",
+            "History, notes and downloads live in SQLite on your machine.",
+            "Google login is only used when you connect it.",
+            "SponsorBlock requests use a hash prefix (never the full video ID).",
           ].map((t) => (
             <p key={t} className="flex items-start gap-2">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" />
@@ -745,13 +770,13 @@ function DataSettings() {
 
   return (
     <>
-      <SettingsSection title="Backup" description="Sab kuch ek file me — portable, plain JSON." icon={<HardDrive className="h-4 w-4" />}>
+      <SettingsSection title="Backup" description="Everything in one portable, plain-JSON file." icon={<HardDrive className="h-4 w-4" />}>
         <Row label="Export everything" description="Settings + subscriptions + notes + history + playlists.">
           <Button size="sm" variant="primary" onClick={exportAll}>
             Export .json
           </Button>
         </Row>
-        <Row label="Import from Google Takeout" description="watch-history.json — purani history wapas.">
+        <Row label="Import from Google Takeout" description="watch-history.json — bring your old history back.">
           <Button size="sm" variant="secondary">
             Choose file
           </Button>
@@ -761,16 +786,16 @@ function DataSettings() {
             Choose file
           </Button>
         </Row>
-        <Switch checked={s.backupOnQuit} onChange={(v) => s.set("backupOnQuit", v)} label="Quit pe auto-backup" />
+        <Switch checked={s.backupOnQuit} onChange={(v) => s.set("backupOnQuit", v)} label="Auto-backup on quit" />
       </SettingsSection>
 
-      <SettingsSection title="Reset" description="Soch samajh ke — local data chala jayega.">
+      <SettingsSection title="Reset" description="Careful — local data will be wiped.">
         <Row label="Reset all settings">
           <Button
             size="sm"
             variant="danger"
             onClick={() => {
-              if (confirm("Sab settings default ho jayengi. Continue?")) s.reset();
+              if (confirm("All settings will return to defaults. Continue?")) s.reset();
             }}
           >
             Reset
@@ -789,18 +814,18 @@ function DataSettings() {
 /* ── About ─────────────────────────────────────────────────── */
 function AboutSettings() {
   return (
-    <SettingsSection title="LocalTube" description="Personal, local-first YouTube client." icon={<Info className="h-4 w-4" />}>
+    <SettingsSection title="LocalTube" description="A personal, local-first YouTube client." icon={<Info className="h-4 w-4" />}>
       <div className="space-y-2 py-3.5 text-[12.5px] leading-relaxed text-[var(--text-dim)]">
         <p>
           <span className="font-medium text-[var(--text)]">v0.1.0</span> · Tauri v2 + Rust + React 19
         </p>
         <p>
-          Playback engine: yt-dlp / InnerTube (auto-fallback). Metadata: RSS + YouTube Data API.
+          Playback: yt-dlp / InnerTube with auto-fallback. Metadata: RSS + YouTube Data API.
           Enrichment: SponsorBlock, DeArrow, Return YouTube Dislike.
         </p>
         <p className="text-[var(--text-mute)]">
-          Ye app personal use ke liye hai. Downloaded content sirf aapke offline dekhne ke liye —
-          YouTube ke Terms of Service ka respect karna aapki zimmedari hai.
+          This app is for personal use. Downloaded content is for your own offline viewing —
+          respecting YouTube's Terms of Service is your responsibility.
         </p>
         <div className="flex flex-wrap gap-1.5 pt-1">
           {["SponsorBlock", "DeArrow", "Return YouTube Dislike", "yt-dlp", "Tauri", "React"].map((t) => (

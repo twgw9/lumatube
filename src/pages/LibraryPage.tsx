@@ -110,7 +110,7 @@ export function LibraryPage() {
                     ) : null;
                   })}
                   {!p.videoIds.length && (
-                    <p className="py-3 text-[12px] text-[var(--text-mute)]">Khali playlist — video pe "Save" dabao.</p>
+                    <p className="py-3 text-[12px] text-[var(--text-mute)]">Empty playlist — use "Save" on a video.</p>
                   )}
                 </div>
                 <p className="mt-2 text-[11.5px] text-[var(--text-mute)]">{p.videoIds.length} videos</p>
@@ -126,7 +126,7 @@ export function LibraryPage() {
             likedVideos.map((v) => <VideoCard key={v.id} video={v} />)
           ) : (
             <div className="col-span-full">
-              <EmptyState icon={<Heart className="h-6 w-6" />} title="Koi liked video nahi" />
+              <EmptyState icon={<Heart className="h-6 w-6" />} title="No liked videos yet" />
             </div>
           )}
         </div>
@@ -146,7 +146,7 @@ export function LibraryPage() {
               </li>
             ))}
           </ul>
-          {!historyVideos.length && <EmptyState icon={<Bookmark className="h-6 w-6" />} title="History khali hai" />}
+          {!historyVideos.length && <EmptyState icon={<Bookmark className="h-6 w-6" />} title="History is empty" />}
         </>
       )}
 
@@ -169,7 +169,7 @@ export function LibraryPage() {
               <EmptyState
                 icon={<Bookmark className="h-6 w-6" />}
                 title="Clip bookmarks"
-                description="Player me 'Clip' dabao — moment save ho jayega."
+                description="Press 'Clip' in the player to save a moment."
               />
             </div>
           )}

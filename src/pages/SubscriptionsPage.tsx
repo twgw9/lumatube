@@ -106,7 +106,7 @@ export function SubscriptionsPage() {
                 }
                 if (e.key === "Escape") setNewFolder(false);
               }}
-              placeholder="Folder ka naam"
+              placeholder="Folder name"
               className="h-7.5 w-40 text-[12px]"
             />
           </div>
@@ -140,9 +140,9 @@ export function SubscriptionsPage() {
           empty={
             <EmptyState
               icon={<Rss className="h-6 w-6" />}
-              title="Is folder me kuch nahi"
-              description="Channels add karo ya folder change karo. Feed sirf aapke subscriptions se banti hai."
-              action={<Button variant="primary" onClick={() => setView("channels")}>Channels dekho</Button>}
+              title="Nothing in this folder"
+              description="Add channels or switch folders. The feed only comes from your subscriptions."
+              action={<Button variant="primary" onClick={() => setView("channels")}>Browse channels</Button>}
             />
           }
         />

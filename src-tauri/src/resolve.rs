@@ -52,6 +52,29 @@ fn http() -> reqwest::Client {
         .expect("http client")
 }
 
+/// Human string ("1080p") → pixel height cap ("auto" → None).
+pub fn height_cap(quality: &str) -> Option<u32> {
+    match quality {
+        "4320p" => Some(4320),
+        "2160p" => Some(2160),
+        "1440p" => Some(1440),
+        "1080p" => Some(1080),
+        "720p" => Some(720),
+        "480p" => Some(480),
+        "360p" => Some(360),
+        _ => None,
+    }
+}
+
+/// Trim a resolved stream to the requested quality (keeps the best <= cap).
+pub fn apply_cap(info: &mut StreamInfo, cap: Option<u32>) {
+    let Some(cap) = cap else { return };
+    info.qualities.retain(|q| q.height <= cap);
+    if let Some(best) = info.qualities.first() {
+        info.video_url = Some(best.url.clone());
+    }
+}
+
 /// Resolve with the full fallback chain. `prefer` = "auto" | "ytdlp" | "innertube" | "official".
 pub async fn resolve(
     db: &Db,
@@ -104,6 +127,8 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
     use tauri_plugin_shell::ShellExt;
 
     let url = format!("https://www.youtube.com/watch?v={video_id}");
+    // `bv*+ba/b` already means "best video + best audio, or best muxed" — which
+    // is exactly what Premium does: highest resolution and fps available.
     let out = app
         .shell()
         .sidecar("yt-dlp")
@@ -114,6 +139,7 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
             "--no-playlist".to_string(),
             "-f".to_string(),
             "bv*+ba/b".to_string(),
+            "--no-check-formats".to_string(),
             url.clone(),
         ])
         .output()
@@ -157,8 +183,14 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
                 audio_only = Some(url.to_string());
             }
             if has_video && height > 0 {
+                let fps = f["fps"].as_f64().unwrap_or(30.0);
+                let label = if fps >= 50.0 {
+                    format!("{height}p{fps:.0}")
+                } else {
+                    format!("{height}p")
+                };
                 qualities.push(Quality {
-                    label: format!("{height}p"),
+                    label,
                     height,
                     url: url.to_string(),
                     size_bytes: f["filesize"].as_u64().or(f["filesize_approx"].as_u64()),
@@ -174,7 +206,8 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
         }
     }
 
-    qualities.sort_by(|a, b| b.height.cmp(&a.height));
+    // highest resolution first, highest fps kept per resolution
+    qualities.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| a.label.cmp(&b.label)));
     qualities.dedup_by(|a, b| a.height == b.height);
 
     Ok(StreamInfo {
@@ -257,7 +290,8 @@ async fn innertube_resolve(video_id: &str) -> AppResult<StreamInfo> {
         }
     }
 
-    qualities.sort_by(|a, b| b.height.cmp(&a.height));
+    // highest resolution first, highest fps kept per resolution
+    qualities.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| a.label.cmp(&b.label)));
     qualities.dedup_by(|a, b| a.height == b.height);
 
     if muxed.is_none() && qualities.is_empty() {

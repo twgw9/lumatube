@@ -66,7 +66,7 @@ export function ChannelPage() {
           videos.map((v) => <VideoCard key={v.id} video={v} />)
         ) : (
           <div className="col-span-full">
-            <EmptyState title="Is channel ke videos nahi" />
+            <EmptyState title="No videos from this channel" />
           </div>
         )}
       </div>

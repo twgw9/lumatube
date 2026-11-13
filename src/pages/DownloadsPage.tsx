@@ -162,11 +162,11 @@ export function DownloadsPage() {
       ) : (
         <EmptyState
           icon={<Download className="h-6 w-6" />}
-          title="Koi download nahi"
-          description="Kisi bhi video pe Download dabao. 1080p, 4K, audio-only, ya sponsor-free copy — sab available hai."
+          title="No downloads yet"
+          description="Hit Download on any video. 1080p, 4K, audio-only or sponsor-free copy — all available."
           action={
             <Button variant="primary" onClick={() => (window.location.hash = "#/")}>
-              Videos dekho
+              Browse videos
             </Button>
           }
         />
@@ -253,7 +253,7 @@ function DownloadRow({
           )}
           {job.status === "error" && (
             <p className="mt-1 flex items-center gap-1 text-[11px] text-rose-400">
-              <AlertTriangle className="h-3 w-3" /> {job.error ?? "Extractor fail hua — update try karo"}
+              <AlertTriangle className="h-3 w-3" /> {job.error ?? "Extractor failed — try updating it"}
             </p>
           )}
         </div>
@@ -293,8 +293,8 @@ function DownloadRow({
           <Switch
             checked={job.showInGallery ?? true}
             onChange={onToggleGallery}
-            label="Gallery me dikhao"
-            description="Off = file app ke andar hi rahegi (private)."
+            label="Show in gallery"
+            description="Off = the file stays private inside the app."
           />
           <div className="mt-1 grid gap-1 text-[11.5px] text-[var(--text-mute)]">
             <span>

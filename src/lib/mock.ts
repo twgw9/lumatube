@@ -63,11 +63,11 @@ const v = (
 };
 
 export const demoVideos: Video[] = [
-  v("dQw4w9WgXcQ", "UCcodeharry", "Rust Ownership Explained Clearly (Hindi)", 1_464, 5, 512_000, {
+  v("dQw4w9WgXcQ", "UCcodeharry", "Rust Ownership Explained Clearly", 1_464, 5, 512_000, {
     likes: 24_100,
     dislikes: 310,
     description:
-      "Ownership, borrowing aur lifetimes ko simple Hinglish me samjho.\n\nChapters\n00:00 Intro\n00:48 Ownership rules\n02:35 String slices borrow\n04:10 Borrow checker demo\n06:20 Summary",
+      "Ownership, borrowing and lifetimes explained with real examples.\n\nChapters\n00:00 Intro\n00:48 Ownership rules\n02:35 String slices borrow\n04:10 Borrow checker demo\n06:20 Summary",
     chapters: [
       { startSec: 0, title: "Intro" },
       { startSec: 48, title: "Ownership rules" },
@@ -91,7 +91,7 @@ export const demoVideos: Video[] = [
     likes: 71_000,
     dislikes: 2_400,
   }),
-  v("cVideoId0001", "UCtechburner", "Yeh Phone 24 Ghante Kaise Chalta Hai? (Battery Test)", 1_022, 52, 940_000, {
+  v("cVideoId0001", "UCtechburner", "Can This Phone Last 24 Hours? (Battery Test)", 1_022, 52, 940_000, {
     likes: 44_000,
     dislikes: 1_100,
   }),
@@ -104,7 +104,7 @@ export const demoVideos: Video[] = [
     dislikes: 800,
     isLive: true,
   }),
-  v("fVideoId0004", "UCnews", "Bihar ka AI Startup Scene — Local Builders ki Baat", 842, 100, 42_800, {
+  v("fVideoId0004", "UCnews", "The AI Startup Scene in Patna — Local Builders Speak", 842, 100, 42_800, {
     likes: 3_100,
     dislikes: 90,
   }),
@@ -135,10 +135,10 @@ export const demoNoteSeed: Note[] = [
   {
     id: "n1",
     videoId: "dQw4w9WgXcQ",
-    videoTitle: "Rust Ownership Explained Clearly (Hindi)",
+    videoTitle: "Rust Ownership Explained Clearly",
     channelName: "CodeWithHarry",
     tsSec: 155,
-    body: "String slices are references to a portion of a String — they don't take ownership. Example: `&str`.",
+    body: "String slices are references into a String — they don't take ownership. Example: `&str`.",
     tags: ["rust", "borrow"],
     createdAt: now - 2 * H,
     updatedAt: now - 2 * H,
@@ -146,10 +146,10 @@ export const demoNoteSeed: Note[] = [
   {
     id: "n2",
     videoId: "dQw4w9WgXcQ",
-    videoTitle: "Rust Ownership Explained Clearly (Hindi)",
+    videoTitle: "Rust Ownership Explained Clearly",
     channelName: "CodeWithHarry",
     tsSec: 48,
-    body: "Ownership rules: har value ka ek owner hota hai; ek time pe ek hi owner; owner scope se bahar = value drop.",
+    body: "Ownership rules: every value has one owner; only one owner at a time; the value drops when the owner leaves scope.",
     tags: ["rust"],
     createdAt: now - 5 * H,
     updatedAt: now - 5 * H,
@@ -201,7 +201,7 @@ export const demoDownloadSeed: DownloadJob[] = [
   {
     id: "dl_1",
     videoId: "dQw4w9WgXcQ",
-    title: "Rust Ownership Explained Clearly (Hindi)",
+    title: "Rust Ownership Explained Clearly",
     channelName: "CodeWithHarry",
     thumb: `https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg`,
     preset: "1080p",
@@ -250,18 +250,18 @@ export const demoSegments: Record<string, Segment[]> = {
 /* ─── Transcript demo (timed lines) ─── */
 export const demoTranscript: Record<string, { t: number; text: string }[]> = {
   dQw4w9WgXcQ: [
-    { t: 0, text: "Namaste doston, aaj hum Rust ownership samjhenge." },
-    { t: 8, text: "Ownership Rust ka sabse unique feature hai." },
-    { t: 22, text: "Har value ka ek hi owner hota hai ek time pe." },
-    { t: 48, text: "Teen rules yaad rakhna: har value ka owner, ek owner, scope pe drop." },
-    { t: 96, text: "Ab dekhte hain ki move kya hota hai." },
-    { t: 155, text: "String slices references hote hain, ownership nahi lete." },
-    { t: 188, text: "&str ek borrowed string slice hai." },
-    { t: 250, text: "Borrow checker compile time pe hi sab pakad leta hai." },
-    { t: 296, text: "Isliye Rust me data races nahi hoti." },
-    { t: 320, text: "Yeh video ek sponsor ke saath possible hui hai." },
-    { t: 372, text: "Chalo wapas content pe." },
+    { t: 0, text: "Today we are going to understand Rust ownership from scratch." },
+    { t: 8, text: "Ownership is the most unique feature Rust has." },
+    { t: 22, text: "Every value has exactly one owner at a time." },
+    { t: 48, text: "Remember three rules: one owner, one at a time, dropped at end of scope." },
+    { t: 96, text: "Now let us look at what a move actually does." },
+    { t: 155, text: "String slices are references, they never take ownership." },
+    { t: 188, text: "&str is simply a borrowed string slice." },
+    { t: 250, text: "The borrow checker catches all of this at compile time." },
+    { t: 296, text: "That is why data races cannot happen in Rust." },
+    { t: 320, text: "This video is brought to you by our sponsor." },
+    { t: 372, text: "And now back to the content." },
     { t: 380, text: "Summary: ownership, borrowing, lifetimes." },
-    { t: 420, text: "Practice ke liye playground use karo." },
+    { t: 420, text: "Use the playground to practise along." },
   ],
 };

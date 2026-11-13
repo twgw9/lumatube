@@ -136,18 +136,18 @@ export function DownloadSheet({
             <Switch
               checked={showInGallery}
               onChange={setShowInGallery}
-              label="Gallery me dikhao"
-              description="Off rakho to file sirf app ke andar rahegi (phone gallery me nahi aayegi)."
+              label="Show in gallery"
+              description="Off keeps the file private inside the app (it won't appear in your phone gallery)."
             />
             <Switch
               checked={sponsorCut || preset === "sponsor-free"}
               onChange={setSponsorCut}
               disabled={preset === "sponsor-free"}
-              label="Sponsor segments kaat do"
-              description="ffmpeg se segments physically remove — file hi clean."
+              label="Cut sponsor segments"
+              description="Physically removed with ffmpeg — the file itself is clean."
             />
-            <Switch checked={embedThumb} onChange={setEmbedThumb} label="Thumbnail embed" />
-            <Switch checked={embedChapters} onChange={setEmbedChapters} label="Chapters embed" />
+            <Switch checked={embedThumb} onChange={setEmbedThumb} label="Embed thumbnail" />
+            <Switch checked={embedChapters} onChange={setEmbedChapters} label="Embed chapters" />
           </div>
 
           <div className="mt-3 flex items-start gap-2 rounded-lg bg-[var(--bg-elev-2)] p-2.5 text-[11.5px] leading-relaxed text-[var(--text-mute)]">

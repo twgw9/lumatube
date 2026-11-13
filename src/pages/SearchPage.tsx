@@ -73,14 +73,14 @@ export function SearchPage() {
       ) : (
         <EmptyState
           icon={<SearchIcon className="h-6 w-6" />}
-          title={q ? `"${q}" ke liye kuch nahi mila` : "Kuch dhoondo"}
-          description="Local library (subscriptions, downloads, notes) me search hota hai — bina API quota kharch kiye."
+          title={q ? `"${q}"  no results` : "Search something"}
+          description="Searches your local library (subscriptions, downloads, notes) with zero API quota."
         />
       )}
 
       {noteHits.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-2 text-[13.5px] font-semibold text-[var(--text-dim)]">Notes me hits</h2>
+          <h2 className="mb-2 text-[13.5px] font-semibold text-[var(--text-dim)]">Notes matches</h2>
           <ul className="space-y-1.5">
             {noteHits.map((n) => (
               <li key={n.id}>

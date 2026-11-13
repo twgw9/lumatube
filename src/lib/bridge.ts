@@ -33,23 +33,32 @@ export interface StreamInfo {
   expiresAt?: number;
 }
 
-export async function resolveStream(videoId: string, preferredQuality = "auto"): Promise<StreamInfo> {
+export async function resolveStream(
+  videoId: string,
+  preferredQuality = "auto",
+  engine = "auto",
+): Promise<StreamInfo> {
   const real = await invokeSafe<StreamInfo>("resolve_stream", {
     videoId,
     preferredQuality,
+    engine,
   });
   if (real) return real;
-  // browser demo: Big Buck Bunny-style public sample so the player feels real
-  const url =
-    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+
+  // Browser demo: two public sample clips so quality switching is visible.
+  const hd = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+  const sd = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
   return {
-    muxedUrl: url,
+    muxedUrl: hd,
     durationSec: 15,
     source: "demo",
     qualities: [
-      { label: "1080p", height: 1080, url },
-      { label: "720p", height: 720, url },
-      { label: "480p", height: 480, url },
+      { label: "2160p", height: 2160, url: hd },
+      { label: "1440p", height: 1440, url: hd },
+      { label: "1080p60", height: 1080, url: hd },
+      { label: "720p", height: 720, url: sd },
+      { label: "480p", height: 480, url: sd },
+      { label: "360p", height: 360, url: sd },
     ],
   };
 }
