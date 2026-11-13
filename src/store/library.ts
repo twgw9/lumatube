@@ -61,7 +61,7 @@ interface LibraryState {
   pushHistory: (e: Omit<WatchEvent, "id" | "watchedAt">) => void;
   clearHistory: () => void;
 
-  enqueueDownload: (j: Omit<DownloadJob, "id" | "createdAt" | "status" | "progress">) => void;
+  enqueueDownload: (j: Omit<DownloadJob, "createdAt" | "status" | "progress">) => void;
   updateDownload: (id: string, patch: Partial<DownloadJob>) => void;
   removeDownload: (id: string) => void;
   clearFinishedDownloads: () => void;
@@ -76,27 +76,7 @@ interface LibraryState {
 export const useLibrary = create<LibraryState>()(
   persist(
     (set, get) => ({
-      channels: demoChannels,
-      folders: [
-        { id: "f_tech", name: "Tech", channelIds: ["UCcodeharry", "UCtauri", "UCfireship"] },
-        { id: "f_music", name: "Music", channelIds: ["UClofi"] },
-        { id: "f_news", name: "News", channelIds: ["UCnews", "UCtechburner"] },
-      ],
-      notes: demoNoteSeed,
-      clips: [],
-      playlists: [
-        { id: "p_watch_later", name: "Watch Later", videoIds: ["bZ7kQp3mNv2", "cVideoId0001"], createdAt: Date.now(), updatedAt: Date.now() },
-        { id: "p_rust", name: "Rust deep dive", videoIds: ["dQw4w9WgXcQ", "aQ2xYz9kLm1", "hVideoId0006"], createdAt: Date.now(), updatedAt: Date.now() },
-      ],
-      progress: {
-        aQ2xYz9kLm1: { videoId: "aQ2xYz9kLm1", positionSec: 512, durationSec: 612, percent: 0.84, updatedAt: Date.now() - 3 * 3600_000, completed: false },
-        kVideoId0009: { videoId: "kVideoId0009", positionSec: 260, durationSec: 1342, percent: 0.19, updatedAt: Date.now() - 30 * 3600_000, completed: false },
-      },
-      history: demoHistorySeed,
-      downloads: demoDownloadSeed,
-      liked: ["dQw4w9WgXcQ"],
-      watchLater: ["bZ7kQp3mNv2", "cVideoId0001"],
-      bookmarks: { dQw4w9WgXcQ: 155 },
+      channels: [], folders: [], notes: [], clips: [], playlists: [], progress: {}, history: [], downloads: [], liked: [], watchLater: [], bookmarks: {},
 
       addChannel: (c) =>
         set((s) =>
@@ -201,7 +181,7 @@ export const useLibrary = create<LibraryState>()(
           downloads: [
             {
               ...j,
-              id: uid("dl"),
+              id: j.id,
               status: "queued",
               progress: 0,
               createdAt: Date.now(),
@@ -235,6 +215,16 @@ export const useLibrary = create<LibraryState>()(
 
       importState: (data) => set(data as Partial<LibraryState>),
     }),
-    { name: "localtube.library.v1", version: 1 },
+    { name: "localtube.library.v1", version: 2, migrate: (persisted) => {
+      const state = persisted as Partial<LibraryState>;
+      const seededChannels = new Set(demoChannels.map(c => c.id));
+      const seededDownloads = new Set(demoDownloadSeed.map(d => d.id));
+      const seededHistory = new Set(demoHistorySeed.map(h => h.id));
+      return { ...state,
+        channels: (state.channels ?? []).filter(c => !seededChannels.has(c.id)),
+        downloads: (state.downloads ?? []).filter(d => !seededDownloads.has(d.id)),
+        history: (state.history ?? []).filter(h => !seededHistory.has(h.id)),
+      };
+    } },
   ),
 );

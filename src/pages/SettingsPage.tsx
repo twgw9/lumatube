@@ -1,3 +1,4 @@
+import { FeedPreferences } from "@/components/FeedPreferences";
 import { ProjectInfo } from "@/components/ProjectInfo";
 import { enableDownloadNotifications } from "@/lib/notifications";
 import { useState } from "react";
@@ -39,6 +40,7 @@ import type { DownloadPreset } from "@/lib/types";
 
 const SECTIONS = [
   { to: "/settings", label: "Appearance", icon: Palette, end: true },
+  { to: "/settings/feed", label: "Feed & interests", icon: Sparkles },
   { to: "/settings/playback", label: "Playback", icon: MonitorPlay },
   { to: "/settings/focus", label: "Focus & anti-algorithm", icon: Focus },
   { to: "/settings/downloads", label: "Downloads", icon: Download },
@@ -81,6 +83,7 @@ export function SettingsPage() {
         <MobileSettingsNav />
         <Routes>
           <Route index element={<AppearanceSettings />} />
+          <Route path="feed" element={<FeedPreferences />} />
           <Route path="playback" element={<PlaybackSettings />} />
           <Route path="focus" element={<FocusSettings />} />
           <Route path="downloads" element={<DownloadSettings />} />
@@ -209,54 +212,8 @@ function AppearanceSettings() {
         <Row label="Welcome tour"><Button size="sm" onClick={() => s.set("onboardingDone", false)}>Replay tutorial</Button></Row>
         <Switch checked={s.showNotes} onChange={(v) => s.set("showNotes", v)} label="Show notes section" description="Hide notes from navigation and the video panel without deleting any saved notes." />
       </SettingsSection>
-      <SettingsSection title="Home tabs" description="Build your own home screen.">
-        <div className="space-y-1.5 py-3">
-          {s.homeTabs.map((t) => (
-            <div key={t.id} className="flex items-center gap-2 rounded-lg bg-[var(--bg-elev-2)] px-2.5 py-1.5">
-              <span className="flex-1 text-[12.5px]">{t.label}</span>
-              <Badge>{t.kind}</Badge>
-              <button
-                onClick={() => s.set("homeTabs", s.homeTabs.filter((x) => x.id !== t.id))}
-                className="text-[11px] text-[var(--text-mute)] hover:text-rose-400"
-              >
-                remove
-              </button>
-            </div>
-          ))}
-          <AddTabForm />
-        </div>
-      </SettingsSection>
-    </>
-  );
-}
 
-function AddTabForm() {
-  const tabs = useSettings((s) => s.homeTabs);
-  const set = useSettings((s) => s.set);
-  const [name, setName] = useState("");
-  return (
-    <div className="flex gap-2 pt-1">
-      <Input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="New tab name"
-        className="h-8 text-[12.5px]"
-      />
-      <Button
-        size="sm"
-        variant="secondary"
-        onClick={() => {
-          if (!name.trim()) return;
-          set("homeTabs", [
-            ...tabs,
-            { id: `t_${Date.now()}`, label: name.trim(), kind: "feed" },
-          ]);
-          setName("");
-        }}
-      >
-        Add
-      </Button>
-    </div>
+    </>
   );
 }
 
@@ -295,7 +252,7 @@ function PlaybackSettings() {
           checked={s.premiumStreaming}
           onChange={(v) => s.set("premiumStreaming", v)}
           label="Premium streaming (highest available)"
-          description="Picks the best video + audio streams per video, like YouTube Premium quality. Off = caps at your preferred quality."
+          description="Requests the highest playable combined audio/video format. Separate adaptive 4K/8K video + audio playback is not implemented yet. Downloads can merge them with ffmpeg."
         />
         <Switch
           checked={s.preferHighestFps}
@@ -715,10 +672,12 @@ function AccountSettings() {
 
       <SettingsSection
         title="API keys (optional)"
-        description="Leave blank and the app still works — YouTube search just stays quota-limited."
+        description="Browser popular/search/subscription feeds require a valid Data API key. Native RSS subscriptions need no key. This is not your personalised YouTube Home feed."
       >
-        <Row label="YouTube Data API key" description="Search + duration metadata. Free from Google Cloud.">
+        <Row label="YouTube Data API key" description="Enable YouTube Data API v3 in Google Cloud. Needed for browser public feeds/search; quota and key restrictions apply. Stored locally, not a Google login.">
           <Input
+            type="password"
+            autoComplete="off"
             value={s.dataApiKey}
             onChange={(e) => s.set("dataApiKey", e.target.value)}
             placeholder="AIza…"

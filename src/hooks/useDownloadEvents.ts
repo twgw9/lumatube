@@ -5,8 +5,7 @@ import { useLibrary } from "@/store/library";
 
 /**
  * Bridges Rust download events into the local store.
- * In the browser demo there is no backend, so the seeded demo job is animated
- * instead — same code paths, no special-casing in components.
+ * No fake browser progress is generated.
  */
 export function useDownloadEvents() {
   useEffect(() => {
@@ -47,19 +46,6 @@ export function useDownloadEvents() {
       });
     })();
 
-    // demo animation: keeps the running seed job moving so the UI feels alive
-    const hasBackend = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-    if (!hasBackend) {
-      timer = window.setInterval(() => {
-        const { downloads, updateDownload } = useLibrary.getState();
-        const running = downloads.find((d) => d.status === "running");
-        if (running && running.progress < 1) {
-          updateDownload(running.id, { progress: Math.min(1, running.progress + 0.006) });
-        } else if (running) {
-          updateDownload(running.id, { status: "done", progress: 1, finishedAt: Date.now() });
-        }
-      }, 900);
-    }
 
     return () => {
       unProgress();

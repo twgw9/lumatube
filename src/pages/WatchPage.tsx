@@ -1,3 +1,6 @@
+import { useCatalog } from "@/store/catalog";
+import { videoDetails } from "@/lib/youtube";
+import { isTauri } from "@/lib/utils";
 import { SubscribeButton } from "@/components/SubscribeButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -45,14 +48,19 @@ export function WatchPage() {
   const [params] = useSearchParams();
   const startAt = Number(params.get("t") ?? 0);
 
-  const video = useMemo(() => demoVideos.find((v) => v.id === id) ?? demoVideos[0], [id]);
-  const related = useMemo(() => demoVideos.filter((v) => v.id !== video.id).slice(0, 8), [video.id]);
+  const catalog = useCatalog(s => s.videos);
+  const video = catalog[id] ?? { id, title: `YouTube video · ${id}`, channelId: "", channelName: "Metadata unavailable", thumb: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, publishedAt: "", durationSec: 0 };
+  const related = Object.values(catalog).filter(v => v.id !== id).slice(0, 8);
+  const native = isTauri();
+  const [streamError, setStreamError] = useState("");
+  const [retry, setRetry] = useState(0);
+
 
   const settings = useSettings();
   const lib = useLibrary();
   const progress = lib.progress[video.id];
   const [stream, setStream] = useState<StreamInfo | null>(null);
-  const [segments, setSegments] = useState<Segment[]>(demoSegments[video.id] ?? []);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [transcript, setTranscript] = useState<{ t: number; text: string }[]>([]);
   const [votes, setVotes] = useState<{ likes: number; dislikes: number } | null>(null);
   const [sideTab, setSideTab] = useState<SideTab>(settings.showNotes ? "notes" : "chapters");
@@ -73,12 +81,12 @@ export function WatchPage() {
   /* ── data loading ─────────────────────────────────────────── */
   useEffect(() => {
     let alive = true;
-    setStream(null);
-    resolveStream(
+    setStream(null); setStreamError(""); setSegments([]); setTranscript([]); setVotes(null);
+    if (native) resolveStream(
       video.id,
       settings.premiumStreaming ? "auto" : settings.defaultQuality,
       settings.engine,
-    ).then((s) => alive && setStream(s));
+    ).then((s) => alive && setStream(s)).catch(err => { if (alive) setStreamError(err instanceof Error ? err.message : String(err)); });
     fetchSkipSegments(video.id, settings.sponsorCategories).then(
       (s) => alive && s.length && setSegments(s),
     );
@@ -86,7 +94,8 @@ export function WatchPage() {
     if (settings.returnYoutubeDislike) {
       fetchDislikes(video.id).then((v) => alive && v && setVotes(v));
     }
-    if (settings.recordHistory) lib.pushHistory({
+    if (settings.dataApiKey && !catalog[video.id]) void videoDetails([video.id], settings.dataApiKey).then(rows => { if (alive) useCatalog.getState().remember(rows); }).catch(() => {});
+    if (useSettings.getState().recordHistory && catalog[video.id]) lib.pushHistory({
       videoId: video.id,
       title: video.title,
       channelName: video.channelName,
@@ -97,12 +106,13 @@ export function WatchPage() {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [video.id]);
+  }, [video.id, retry, settings.engine, settings.defaultQuality, settings.premiumStreaming]);
 
   const onProgress = useCallback(
     (pos: number, dur: number) => {
       lastPos.current = pos;
       setCurrentTime(pos);
+      if (!useSettings.getState().recordHistory) return;
       const percent = dur ? pos / dur : 0;
       const completed = dur > 0 && percent > 0.97;
       lib.setProgress({
@@ -187,7 +197,7 @@ export function WatchPage() {
                 }}
               />
             )}
-          <PlayerSurface
+          {!native ? <div className="aspect-video overflow-hidden rounded-xl bg-black"><iframe key={id} title={video.title} src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`} referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen className="h-full w-full border-0" /></div> : streamError ? <div role="alert" className="grid aspect-video place-items-center rounded-xl bg-[var(--bg-elev)] p-6 text-center"><div><p className="mb-4 text-sm text-amber-400">{streamError}</p><Button onClick={() => setRetry(r => r + 1)}>Retry extraction</Button><a href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`} target="_blank" rel="noreferrer" className="ml-3 text-sm underline">Watch on YouTube</a></div></div> : <PlayerSurface
             video={video}
             stream={stream}
             segments={segments}
@@ -208,7 +218,7 @@ export function WatchPage() {
             onToggleTheater={() => setTheater((v) => !v)}
             onPrev={related.length ? () => (window.location.hash = `#/watch/${related[related.length - 1].id}`) : undefined}
             onNext={related.length ? () => (window.location.hash = `#/watch/${related[0].id}`) : undefined}
-          />
+          />}
           </div>
 
           {/* title block */}
@@ -227,6 +237,7 @@ export function WatchPage() {
               {stream?.source && <Badge>engine: {stream.source}</Badge>}
             </div>
 
+            {!native && <p className="mt-3 rounded-xl border border-[var(--border)] p-3 text-xs text-[var(--text-dim)]">Browser playback uses the official YouTube embed (ads/restrictions may apply). Native speed, SponsorBlock, progress tracking and downloads do not control this embed. If embedding is blocked, <a className="underline" href={`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`} target="_blank" rel="noreferrer">watch on YouTube</a>.</p>}
             {/* channel + actions */}
             <div className="mt-4 flex flex-wrap items-center gap-2 border-b border-[var(--border)] pb-4">
               <Link
@@ -249,7 +260,7 @@ export function WatchPage() {
                 </span>
               </Link>
 
-              <SubscribeButton channel={{ id: video.channelId, name: video.channelName, avatar: video.channelAvatar }} />
+              {video.channelId && <SubscribeButton channel={{ id: video.channelId, name: video.channelName, avatar: video.channelAvatar }} />}
               <div className="ml-auto flex flex-wrap items-center gap-1.5">
                 <div className="flex h-9 items-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-elev)]">
                   <button

@@ -1,3 +1,4 @@
+import { useCatalog } from "@/store/catalog";
 import { SubscribeButton } from "@/components/SubscribeButton";
 import { useParams } from "react-router-dom";
 import { Users } from "lucide-react";
@@ -11,8 +12,9 @@ export function ChannelPage() {
   const { id = "" } = useParams();
   const channels = useLibrary(s => s.channels);
   const channel = channels.find(c => c.id === id) ?? demoChannels.find(c => c.id === id);
+  const catalog = useCatalog(s => s.videos);
   if (!channel) return <EmptyState title="Channel not found" description="Open a channel from a video or your subscriptions." />;
-  const videos = demoVideos.filter((v) => v.channelId === channel.id);
+  const videos = Object.values(catalog).filter((v) => v.channelId === channel.id);
 
   return (
     <div className="mx-auto w-full max-w-[1680px] px-4 pb-16 sm:px-6">

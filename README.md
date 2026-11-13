@@ -1,3 +1,11 @@
+## Real-feed wiring update
+
+Home and Subscriptions no longer substitute demo videos. Browser feeds require a user-provided YouTube Data API v3 key (Settings → Account); choose Subscriptions or Popular in India. Subscribe via a channel URL, @handle or channel ID. Search, popular pages and uploads playlists have token-based Load more with deduplication, request cancellation and visible quota/network errors. API keys are stored locally (not encrypted); restrict the key in Google Cloud. Google sign-in remains unimplemented; these are public feeds, not personalised YouTube Home.
+
+Browser watch pages use the actual selected video's official YouTube embed; embeds may show ads or reject playback. Native extraction errors are visible, never replaced by sample media. Native playback is restricted to combined audio/video formats until adaptive A/V support exists. Downloads may still merge separate streams. No live YouTube/network or Rust end-to-end verification has occurred in this sandbox.
+
+Tests: `npm run test:regression` includes mocked Data API and jsdom feed-hook tests. Build: `npm run build`. Passing mocks are not a substitute for live API/native/device tests.
+
 > **Build status:** Browser preview and TypeScript build verified. Rust has not been compiled in this sandbox. Android APK, foreground download service, MediaStore integration, Google OAuth and encrypted sync are not implemented or device-tested. See [Android readiness](docs/android-port.md). GitHub release discovery is a manual sideload flow, not a signed automatic updater. Source is available in this repository; no open-source license has been chosen yet.
 
 # LumaTube
@@ -154,3 +162,7 @@ docs/           research blueprint, implementation playbook, UI spec, mockups
 v0.1.0 — the full UI is implemented and building; the Rust backend compiles against
 Tauri v2 and needs the sidecars to fetch real streams. Next up: Android build with
 MediaStore gallery save, and the optional encrypted sync bridge.
+
+## Latest desktop work
+
+Guest profile menu, history search/pause and Notes OFF by default. Run `npm run test:regression` and `npm run build`. See [desktop preview and Windows installer instructions](docs/desktop-preview.md). Windows CI is manual and has not been run/verified yet; no installer is attached to this change.

@@ -21,6 +21,12 @@ async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promi
   }
 }
 
+export async function invokeRequired<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  if (!isTauri()) throw new Error("This action requires the native desktop app. Browser mode cannot run the extractor or save native downloads.");
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<T>(cmd, args);
+}
+
 /* ── streams ─────────────────────────────────────────────────── */
 
 export interface StreamInfo {
@@ -38,20 +44,7 @@ export async function resolveStream(
   preferredQuality = "auto",
   engine = "auto",
 ): Promise<StreamInfo> {
-  const real = await invokeSafe<StreamInfo>("resolve_stream", {
-    videoId,
-    preferredQuality,
-    engine,
-  });
-  if (real) return real;
-
-  // Local CC-BY sample: no third-party media host needed in browser preview.
-  return {
-    muxedUrl: "/media/preview.mp4",
-    durationSec: 60,
-    source: "demo",
-    qualities: [{ label: "360p · Demo", height: 360, url: "/media/preview.mp4" }],
-  };
+  return invokeRequired<StreamInfo>("resolve_stream", { videoId, preferredQuality, engine });
 }
 
 /* ── feeds ───────────────────────────────────────────────────── */
@@ -92,7 +85,7 @@ export async function fetchSkipSegments(
       segments: { category: SponsorCategory; actionType: string; segment: [number, number]; UUID: string }[];
     }[] = await res.json();
     const mine = groups.find((g) => g.videoID === videoId);
-    if (!mine) return demoSegments[videoId] ?? [];
+    if (!mine) return [];
     return mine.segments.map((s) => ({
       category: s.category,
       startSec: s.segment[0],
@@ -101,7 +94,7 @@ export async function fetchSkipSegments(
       uuid: s.UUID,
     }));
   } catch {
-    return demoSegments[videoId] ?? [];
+    return [];
   }
 }
 
@@ -133,7 +126,7 @@ export async function fetchDislikes(videoId: string) {
 
 export async function fetchTranscript(videoId: string) {
   const real = await invokeSafe<{ t: number; text: string }[]>("fetch_transcript", { videoId });
-  return real ?? demoTranscript[videoId] ?? [];
+  return real ?? [];
 }
 
 export function parseChaptersFromDescription(desc?: string): Chapter[] {
@@ -164,8 +157,8 @@ export interface DownloadRequest {
   embedSubs: boolean;
 }
 
-export async function startDownload(req: DownloadRequest): Promise<{ jobId: string } | null> {
-  return invokeSafe("start_download", { req });
+export async function startDownload(req: DownloadRequest, jobId: string): Promise<{ jobId: string }> {
+  return invokeRequired("start_download", { req, jobId });
 }
 export async function pauseDownload(jobId: string) {
   return invokeSafe("pause_download", { jobId });
@@ -174,7 +167,7 @@ export async function resumeDownload(jobId: string) {
   return invokeSafe("resume_download", { jobId });
 }
 export async function cancelDownload(jobId: string) {
-  return invokeSafe("cancel_download", { jobId });
+  return invokeRequired("cancel_download", { jobId });
 }
 export async function revealInFolder(path: string) {
   return invokeSafe("reveal_in_folder", { path });
@@ -353,7 +346,7 @@ export async function loadFeed(limit = 120): Promise<Video[]> {
 
 /** Refresh all subscribed channels via RSS, persist, return the new rows. */
 export async function refreshFeed(channelIds: string[], apiKey?: string): Promise<Video[]> {
-  const rows = await invokeSafe<VideoRowDto[]>("refresh_feed", {
+  const rows = await invokeRequired<VideoRowDto[]>("refresh_feed", {
     channelIds,
     apiKey: apiKey || null,
   });
@@ -363,7 +356,7 @@ export async function refreshFeed(channelIds: string[], apiKey?: string): Promis
 
 /** Resolve @handle → channel id/name/avatar using the Rust resolver. */
 export async function resolveChannel(handle: string) {
-  return invokeSafe<{ id: string; name: string; avatar?: string }>("resolve_channel", { handle });
+  return invokeRequired<{ id: string; name: string; avatar?: string }>("resolve_channel", { handle });
 }
 
 /** SEARCH video via Data API (quota-aware, 100 units per call). */

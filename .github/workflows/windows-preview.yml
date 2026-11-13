@@ -1,0 +1,55 @@
+name: Windows preview installer
+on:
+  push:
+    branches: ["arena/f7a4aafd-newww"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - run: npm run test:regression
+      - name: Fetch upstream desktop tools and retain notices
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force src-tauri/binaries, third-party-notices | Out-Null
+          gh release download --repo yt-dlp/yt-dlp --pattern yt-dlp.exe --pattern SHA2-256SUMS --dir third-party-notices
+          if ($LASTEXITCODE -ne 0) { throw 'yt-dlp download failed' }
+          $expected = ((Get-Content third-party-notices/SHA2-256SUMS | Where-Object { $_ -match '\s+yt-dlp.exe$' }) -split '\s+')[0]
+          if ((Get-FileHash third-party-notices/yt-dlp.exe -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'yt-dlp hash mismatch' }
+          Move-Item third-party-notices/yt-dlp.exe src-tauri/binaries/yt-dlp-x86_64-pc-windows-msvc.exe
+          gh release download latest --repo BtbN/FFmpeg-Builds --pattern ffmpeg-master-latest-win64-gpl.zip --dir $env:RUNNER_TEMP
+          if ($LASTEXITCODE -ne 0) { throw 'FFmpeg download failed' }
+          Expand-Archive "$env:RUNNER_TEMP/ffmpeg-master-latest-win64-gpl.zip" "$env:RUNNER_TEMP/ffmpeg"
+          $ffmpeg = Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Filter ffmpeg.exe -Recurse | Select-Object -First 1
+          if (!$ffmpeg) { throw 'FFmpeg binary missing' }
+          Copy-Item $ffmpeg.FullName src-tauri/binaries/ffmpeg-x86_64-pc-windows-msvc.exe
+          Get-ChildItem "$env:RUNNER_TEMP/ffmpeg" -Recurse -File | Where-Object { $_.Name -match 'LICENSE|COPYING' } | Copy-Item -Destination third-party-notices
+          gh api repos/yt-dlp/yt-dlp/license --jq .content | Out-File "$env:RUNNER_TEMP/ytdlp-license-base64.txt"
+          $encoded = (Get-Content "$env:RUNNER_TEMP/ytdlp-license-base64.txt" -Raw) -replace '\s',''
+          [IO.File]::WriteAllBytes("$pwd/third-party-notices/yt-dlp-LICENSE", [Convert]::FromBase64String($encoded))
+          Get-FileHash src-tauri/binaries/*.exe -Algorithm SHA256 | Format-List | Out-File third-party-notices/SIDECAR-SHA256.txt
+          'Preview only. FFmpeg GPL build: https://github.com/BtbN/FFmpeg-Builds . Matching source and build recipes must be retained before redistribution. yt-dlp: https://github.com/yt-dlp/yt-dlp . Upstream tools fetched at build time; inspect hashes in this artifact.' | Out-File third-party-notices/README.txt
+      - name: Generate platform icons
+        run: npx tauri icon public/logo.svg
+      - name: Build unsigned NSIS preview installer
+        run: npx tauri build --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LumaTube-Windows-preview-unsigned
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            third-party-notices/

@@ -89,7 +89,7 @@ export const defaultSettings: Settings = {
   density: "comfortable",
   motion: "full",
   foldThumbs: false,
-  showNotes: true,
+  showNotes: false,
   onboardingDone: false,
   downloadNotifications: false,
   recordHistory: true,
@@ -205,6 +205,11 @@ export const useSettings = create<SettingsStore>()(
       patch: (p) => set(p),
       reset: () => set(defaultSettings),
     }),
-    { name: "localtube.settings.v1" },
+    {
+      name: "localtube.settings.v1",
+      version: 1,
+      // One-time migration for the new notes-off default. Can be re-enabled.
+      migrate: (persisted) => ({ ...(persisted as Partial<Settings>), showNotes: false, googleConnected: false, googleEmail: null }),
+    },
   ),
 );

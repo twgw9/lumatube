@@ -115,7 +115,7 @@ fn plan_for(preset: &str) -> FmtPlan {
 
 #[derive(Default)]
 pub struct VaultState {
-    pub running: Mutex<HashMap<String, u32>>, // job id -> child pid
+    pub running: Mutex<HashMap<String, tauri_plugin_shell::process::CommandChild>>, // own children so cancel actually kills them
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -250,7 +250,7 @@ pub async fn spawn_download(
 
     if let Some(state) = app.try_state::<Arc<VaultState>>() {
         if let Ok(mut map) = state.running.lock() {
-            map.insert(job_id.clone(), child.pid());
+            map.insert(job_id.clone(), child);
         }
     }
 

@@ -1,212 +1,49 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Filter, Flame, Play, Plus, Sparkles, TrendingUp } from "lucide-react";
-import { demoVideos } from "@/lib/mock";
-import { useLibrary } from "@/store/library";
-import { useSettings } from "@/store/settings";
-import { VideoGrid } from "@/components/VideoCard";
-import { loadFeed } from "@/lib/bridge";
-import { Button, EmptyState, Segmented } from "@/components/ui";
-import { cn, formatTime } from "@/lib/utils";
-import type { Video } from "@/lib/types";
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { useInterests } from '@/store/interests';
+import { interestQueries, rankFeed } from '@/lib/recommendations';
+import { useFeed } from '@/hooks/useFeed';
+import { useCatalog } from '@/store/catalog';
+import { useLibrary } from '@/store/library';
+import { useSettings } from '@/store/settings';
+import { VideoGrid } from '@/components/VideoCard';
+import { Button, EmptyState, IconButton } from '@/components/ui';
+import { cn, isTauri } from '@/lib/utils';
 
+type Tab = 'personalized' | 'popular' | 'subscriptions' | 'continue';
 export function HomePage() {
-  const showContinueWatching = useSettings((s) => s.showContinueWatching);
-  const tabs = useSettings((s) => s.homeTabs);
-  const hideShorts = useSettings((s) => s.hideShorts);
-  const hideRecommendations = useSettings((s) => s.hideRecommendations);
-  const focusMode = useSettings((s) => s.focusMode);
-  const keywordBlocklist = useSettings((s) => s.keywordBlocklist);
-  const channelBlocklist = useSettings((s) => s.channelBlocklist);
-
-  const folders = useLibrary((s) => s.folders);
-  const progress = useLibrary((s) => s.progress);
-  const history = useLibrary((s) => s.history);
-
-  const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? "t_new");
-  const [remoteFeed, setRemoteFeed] = useState<Video[] | null>(null);
-
-  // With the Rust backend present this pulls the real SQLite feed; in the
-  // browser demo it returns [] and we fall back to the sample dataset.
-  useEffect(() => {
-    let alive = true;
-    loadFeed(150).then((rows) => {
-      if (alive && rows.length) setRemoteFeed(rows);
-    }).catch(() => { /* Keep the offline sample feed available. */ });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const filtered = useMemo(() => {
-    const source = remoteFeed ?? demoVideos;
-    let list = source.filter((v) => {
-      if (hideShorts && v.isShort) return false;
-      if (channelBlocklist.includes(v.channelId)) return false;
-      const hay = `${v.title} ${v.channelName}`.toLowerCase();
-      if (keywordBlocklist.some((k) => k && hay.includes(k.toLowerCase()))) return false;
-      return true;
-    });
-
-    const tab = tabs.find((t) => t.id === activeTab);
-    if (tab?.kind === "folder" && tab.folderId) {
-      const folder = folders.find((f) => f.id === tab.folderId);
-      if (folder) {
-        list = list.filter((v) => folder.channelIds.includes(v.channelId));
-      }
-    }
-    return list;
-  }, [activeTab, tabs, folders, hideShorts, keywordBlocklist, channelBlocklist, remoteFeed]);
-
-  const continueList = useMemo(() => {
-    return Object.values(progress)
-      .filter((p) => !p.completed && p.percent > 0.02 && p.percent < 0.97)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .map((p) => demoVideos.find((v) => v.id === p.videoId))
-      .filter(Boolean) as Video[];
-  }, [progress]);
-
-  const tab = tabs.find((t) => t.id === activeTab);
-  const isContinueTab = tab?.kind === "continue";
-
-  return (
-    <div className="mx-auto w-full max-w-[1920px] px-4 pb-16 pt-4 sm:px-6">
-      {/* header row */}
-      <div className="mb-1 flex flex-wrap items-center gap-2">
-        <h1 className="mr-1 text-[19px] font-semibold tracking-tight">
-          {focusMode ? (
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-4.5 w-4.5 text-[var(--accent)]" /> Focus feed
-            </span>
-          ) : (
-            "Home"
-          )}
-        </h1>
-        <span className="hidden text-[12px] text-[var(--text-mute)] sm:inline">
-          · {filtered.length} videos · algorithm off
-        </span>
+  const settings = useSettings();
+  const channels = useLibrary(s => s.channels);
+  const progress = useLibrary(s => s.progress);
+  const catalog = useCatalog(s => s.videos);
+  const interests = useInterests();
+  const queries = useMemo(() => interests.enabled ? interestQueries(interests.searches) : [], [interests.enabled, interests.searches]);
+  const [selectedTab, setTab] = useState<Tab>('personalized');
+  const tab = settings.focusMode ? 'subscriptions' : selectedTab;
+  const mode = settings.focusMode ? 'subscriptions' : tab === 'continue' ? 'subscriptions' : tab;
+  const feed = useFeed(mode, channels.filter(c => c.subscribed !== false && /^UC[\w-]{22}$/.test(c.id)).map(c => c.id), mode === 'personalized' ? queries.join('\n') : '', tab !== 'continue' && !(settings.hideRecommendations && !settings.focusMode && tab !== 'subscriptions'));
+  const videos = useMemo(() => {
+    let list = tab === 'continue' ? Object.values(progress).filter(p => !p.completed && p.percent > .02 && p.percent < .97).sort((a,b) => b.updatedAt-a.updatedAt).map(p => catalog[p.videoId]).filter(Boolean) : feed.videos;
+    if (settings.hideRecommendations && !settings.focusMode && tab !== 'continue' && tab !== 'subscriptions') return [];
+    if (tab === 'personalized' && !settings.focusMode) list = rankFeed(list, queries, interests.dismissed, new Set(Object.values(progress).filter(p => p.completed).map(p => p.videoId)));
+    return list.filter(v => !(settings.hideShorts && v.isShort) && !settings.channelBlocklist.includes(v.channelId) && !interests.dismissed.includes(v.id) && !settings.keywordBlocklist.some(k => k && `${v.title} ${v.channelName}`.toLowerCase().includes(k.toLowerCase())));
+  }, [tab, feed.videos, settings, queries, interests.dismissed, progress, catalog]);
+  const tabs: { id: Tab; label: string }[] = settings.focusMode ? [{ id: 'subscriptions', label: 'Subscriptions · Focus' }] : [{ id: 'personalized', label: 'For you' }, { id: 'subscriptions', label: 'Subscriptions' }, { id: 'popular', label: 'Explore' }, ...(settings.showContinueWatching ? [{ id: 'continue' as const, label: 'Continue watching' }] : [])];
+  const needsSetup = !isTauri() && !settings.dataApiKey.trim() && tab !== 'continue';
+  return <div className="mx-auto w-full max-w-[1920px] px-4 pb-16 sm:px-6">
+    <h1 className="sr-only">Home video feed</h1>
+    <div className="sticky top-0 z-20 -mx-4 mb-6 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg)] px-4 py-3 sm:-mx-6 sm:px-6">
+      <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        {tabs.map(t => <button key={t.id} onClick={() => setTab(t.id)} aria-pressed={settings.focusMode || tab === t.id} className={cn('h-9 shrink-0 rounded-lg px-3.5 text-[13px] font-medium transition-colors', settings.focusMode || tab === t.id ? 'bg-[var(--text)] text-[var(--bg)]' : 'bg-[var(--bg-elev-2)] text-[var(--text-dim)] hover:text-[var(--text)]')}>{t.label}</button>)}
       </div>
-
-      {/* tabs */}
-      <div className="sticky top-0 z-20 -mx-4 mb-5 mt-2 flex items-center gap-1.5 overflow-x-auto bg-[var(--bg)]/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={cn(
-              "h-8 shrink-0 rounded-lg border px-3.5 text-[12.5px] font-medium transition-colors",
-              activeTab === t.id
-                ? "border-transparent bg-[var(--text)] text-[var(--bg)]"
-                : "border-[var(--border)] bg-[var(--bg-elev)] text-[var(--text-dim)] hover:bg-[var(--bg-elev-2)] hover:text-[var(--text)]",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-        <Link
-          to="/settings/appearance"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[var(--border)] text-[var(--text-mute)] hover:text-[var(--text)]"
-          title="Customize tabs"
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-
-      {/* continue watching rail */}
-      {showContinueWatching && !isContinueTab && continueList.length > 0 && !hideRecommendations && (
-        <section className="mb-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-[13.5px] font-semibold text-[var(--text-dim)]">
-              <Play className="h-3.5 w-3.5" /> Continue watching
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => setActiveTab("t_continue")}>
-              See all
-            </Button>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {continueList.slice(0, 3).map((v) => {
-              const p = progress[v.id];
-              return (
-                <Link
-                  key={v.id}
-                  to={`/watch/${v.id}`}
-                  className="group flex gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] p-2.5 transition-colors hover:border-[color-mix(in_oklab,var(--accent)_35%,var(--border))]"
-                >
-                  <div className="relative w-24 sm:w-32 shrink-0 overflow-hidden rounded-lg">
-                    <img src={v.thumb} alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/media/thumbnail.svg"; }} className="aspect-video w-full object-cover" />
-                    <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-[10px] text-white">
-                      {formatTime(v.durationSec)}
-                    </span>
-                    <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/25">
-                      <div
-                        className="h-full bg-[var(--accent)]"
-                        style={{ width: `${(p?.percent ?? 0) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1 py-0.5">
-                    <p className="clamp-2 text-[13px] font-medium leading-snug">{v.title}</p>
-                    <p className="mt-1 text-[11.5px] text-[var(--text-mute)]">{v.channelName}</p>
-                    <p className="mt-0.5 text-[11.5px] text-[var(--accent)]">
-                      {Math.round((p?.percent ?? 0) * 100)}% watched · {formatTime(p?.positionSec ?? 0)}
-                      {" · Resume"}
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* main grid */}
-      <VideoGrid
-        videos={isContinueTab ? continueList : filtered}
-        empty={
-          <EmptyState
-            icon={<Filter className="h-6 w-6" />}
-            title="Nothing in this tab"
-            description="Adjust filters or folders. Focus mode only shows your subscriptions."
-            action={
-              <Button variant="primary" onClick={() => setActiveTab("t_new")}>
-                See today's uploads
-              </Button>
-            }
-          />
-        }
-      />
-
-      {/* footer rail */}
-      {!focusMode && (
-        <div className="mt-12 grid gap-3 sm:grid-cols-3">
-          {[
-            {
-              icon: <TrendingUp className="h-4 w-4" />,
-              title: "Trending (no algorithm)",
-              body: "Most popular videos in your region, with no personalization.",
-            },
-            {
-              icon: <Flame className="h-4 w-4" />,
-              title: "Watch time today",
-              body: "42 min today · 60 min budget. Configure in Settings → Focus.",
-            },
-            {
-              icon: <Sparkles className="h-4 w-4" />,
-              title: "Time saved by SponsorBlock",
-              body: "2h 14m saved this week (14 segments skipped).",
-            },
-          ].map((c) => (
-            <div
-              key={c.title}
-              className="rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] p-4"
-            >
-              <span className="text-[var(--accent)]">{c.icon}</span>
-              <h3 className="mt-2 text-[13px] font-semibold">{c.title}</h3>
-              <p className="mt-1 text-[12px] leading-relaxed text-[var(--text-mute)]">{c.body}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      <IconButton label="Refresh feed" disabled={feed.loading} onClick={feed.refresh} className="h-9 w-9 shrink-0"><RefreshCw className={cn('h-4 w-4', feed.loading && 'animate-spin')} /></IconButton>
+      <Link to="/settings/feed" aria-label="Feed preferences" title="Feed preferences" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg hover:bg-[var(--bg-elev-2)]"><SlidersHorizontal className="h-4 w-4" /></Link>
     </div>
-  );
+    {needsSetup ? <EmptyState title="Preview needs a video source" description="The browser preview needs a Data API key. Native desktop discovery uses bundled yt-dlp without a Google account or API key; the native build still needs verification." action={<Link to="/settings/account" className="text-sm text-[var(--accent)] underline">Configure browser access</Link>} /> : <>
+      {feed.error && tab !== 'continue' && <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/25 bg-amber-400/5 p-3 text-sm"><p className="min-w-0 flex-1">{feed.error}</p><Button size="sm" onClick={feed.refresh}>Retry</Button></div>}
+      <VideoGrid videos={videos} loading={feed.loading && !feed.videos.length && tab !== 'continue'} empty={<EmptyState title={tab === 'continue' ? 'Nothing to resume yet' : 'No videos to show'} description={mode === 'subscriptions' ? 'Subscribe to channels to see their latest uploads here.' : 'Try refreshing, or change your feed preferences.'} action={<Link to={mode === 'subscriptions' ? '/subscriptions' : '/settings/feed'} className="text-sm text-[var(--accent)] underline">{mode === 'subscriptions' ? 'Find channels' : 'Feed preferences'}</Link>} />} />
+      {feed.hasMore && tab !== 'continue' && <div className="mt-8 flex justify-center"><Button disabled={feed.loading} onClick={feed.loadMore}>{feed.loading ? 'Loading…' : 'Show more videos'}</Button></div>}
+    </>}
+  </div>;
 }

@@ -71,7 +71,7 @@ pub fn apply_cap(info: &mut StreamInfo, cap: Option<u32>) {
     let Some(cap) = cap else { return };
     info.qualities.retain(|q| q.height <= cap);
     if let Some(best) = info.qualities.first() {
-        info.video_url = Some(best.url.clone());
+        info.muxed_url = Some(best.url.clone());
     }
 }
 
@@ -82,7 +82,7 @@ pub async fn resolve(
     video_id: &str,
     prefer: &str,
 ) -> AppResult<StreamInfo> {
-    if let Some(hit) = db.cache_get(&format!("stream:{video_id}"), URL_TTL_SECS)? {
+    if let Some(hit) = db.cache_get(&format!("stream:muxed-v2:{video_id}"), URL_TTL_SECS)? {
         if let Ok(info) = serde_json::from_str::<StreamInfo>(&hit) {
             return Ok(info);
         }
@@ -104,7 +104,7 @@ pub async fn resolve(
         match attempt {
             Ok(info) => {
                 if let Ok(json) = serde_json::to_string(&info) {
-                    let _ = db.cache_put(&format!("stream:{video_id}"), &json);
+                    let _ = db.cache_put(&format!("stream:muxed-v2:{video_id}"), &json);
                 }
                 tracing::info!(engine, video_id, "resolved stream");
                 return Ok(info);
@@ -182,7 +182,7 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
             if !has_video && has_audio && audio_only.is_none() {
                 audio_only = Some(url.to_string());
             }
-            if has_video && height > 0 {
+            if has_video && has_audio && height > 0 {
                 let fps = f["fps"].as_f64().unwrap_or(30.0);
                 let label = if fps >= 50.0 {
                     format!("{height}p{fps:.0}")
@@ -206,6 +206,14 @@ async fn ytdlp_resolve(app: &tauri::AppHandle, video_id: &str) -> AppResult<Stre
         }
     }
 
+    if !qualities.is_empty() {
+        qualities.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| b.label.cmp(&a.label)));
+        muxed = qualities.first().map(|q| q.url.clone());
+    }
+    if muxed.is_none() {
+        return Err(AppError::Extractor("No combined audio/video format available. Use the official YouTube fallback.".into()));
+    }
+    // Combined audio/video only until adaptive audio synchronization is implemented.
     // highest resolution first, highest fps kept per resolution
     qualities.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| a.label.cmp(&b.label)));
     qualities.dedup_by(|a, b| a.height == b.height);
@@ -269,7 +277,7 @@ async fn innertube_resolve(video_id: &str) -> AppResult<StreamInfo> {
 
     let mut qualities = Vec::new();
     let mut muxed = None;
-    if let Some(formats) = res["streamingData"]["adaptiveFormats"].as_array() {
+    if let Some(formats) = res["streamingData"]["formats"].as_array() {
         for f in formats {
             let Some(url) = f["url"].as_str() else { continue }; // cipher-only formats skipped
             let mime = f["mimeType"].as_str().unwrap_or("");
@@ -294,7 +302,7 @@ async fn innertube_resolve(video_id: &str) -> AppResult<StreamInfo> {
     qualities.sort_by(|a, b| b.height.cmp(&a.height).then_with(|| a.label.cmp(&b.label)));
     qualities.dedup_by(|a, b| a.height == b.height);
 
-    if muxed.is_none() && qualities.is_empty() {
+    if muxed.is_none() {
         return Err(AppError::Extractor("innertube: no playable format".into()));
     }
 
@@ -336,7 +344,7 @@ async fn instance_resolve(video_id: &str) -> AppResult<StreamInfo> {
 
         let duration = json["lengthSeconds"].as_f64().unwrap_or(0.0);
         let mut qualities = Vec::new();
-        if let Some(formats) = json["adaptiveFormats"].as_array() {
+        if let Some(formats) = json["formatStreams"].as_array() {
             for f in formats {
                 let Some(u) = f["url"].as_str() else { continue };
                 let h = f["resolution"].as_str().unwrap_or("");
@@ -358,7 +366,7 @@ async fn instance_resolve(video_id: &str) -> AppResult<StreamInfo> {
             .map(str::to_string);
 
         qualities.sort_by(|a, b| b.height.cmp(&a.height));
-        if muxed.is_some() || !qualities.is_empty() {
+        if muxed.is_some() {
             let video_url = qualities.first().map(|q| q.url.clone());
             return Ok(StreamInfo {
                 video_url,

@@ -102,10 +102,16 @@ pub struct ResolvedChannel {
 }
 
 pub async fn resolve_handle(handle: &str) -> AppResult<ResolvedChannel> {
-    let clean = handle.trim().trim_start_matches('@');
+    let raw = handle.trim();
+    let clean = raw.trim_start_matches("https://www.youtube.com/").trim_start_matches("https://youtube.com/").trim_start_matches("https://m.youtube.com/").trim_start_matches("channel/").trim_start_matches('@').trim_end_matches('/');
+    let channel_id_re = regex::Regex::new(r"^UC[\w-]{22}$").unwrap();
+    let handle_re = regex::Regex::new(r"^[\p{L}\p{N}_.-]+$").unwrap();
+    if !handle_re.is_match(clean) {
+        return Err(AppError::Other("Enter a valid YouTube @handle, channel URL or UC channel ID".into()));
+    }
     // oEmbed gives us the author but not the channel id; the channel page html
     // contains the canonical id. This is a single cheap request, no API key.
-    let url = format!("https://www.youtube.com/@{clean}");
+    let url = if channel_id_re.is_match(clean) { format!("https://www.youtube.com/channel/{clean}") } else { format!("https://www.youtube.com/@{clean}") };
     let html = http()
         .get(url)
         .send()
@@ -294,6 +300,52 @@ pub async fn refresh_all(db: &Db, channel_ids: &[String]) -> AppResult<Vec<Video
         }
     }
 
+    if all.is_empty() && !channel_ids.is_empty() {
+        return Err(AppError::Other("No channel feed could be loaded. Check channel IDs, connectivity and retry.".into()));
+    }
+    all.sort_by(|a, b| b.published_at.cmp(&a.published_at));
+    all.dedup_by(|a, b| a.id == b.id);
     db.upsert_videos(&all)?;
     Ok(all)
+}
+
+/// Public discovery without Google credentials. Unofficial: yt-dlp may break when
+/// YouTube changes. API-key discovery remains the fallback, never sample data.
+#[tauri::command]
+pub async fn discover_videos(app: tauri::AppHandle, query: String, page: u32) -> AppResult<serde_json::Value> {
+    use tauri_plugin_shell::ShellExt;
+    let query = query.trim();
+    if query.chars().count() < 2 || query.chars().count() > 100 || page >= 12 {
+        return Err(AppError::Other("Search must be 2–100 characters, with at most 12 pages".into()));
+    }
+    let start = page * 24 + 1;
+    let end = (page + 1) * 24;
+    let output = app.shell().sidecar("yt-dlp")
+        .map_err(|e| AppError::Extractor(e.to_string()))?
+        .args(vec!["--flat-playlist".to_string(), "--dump-single-json".into(), "--skip-download".into(), "--no-warnings".into(), "--socket-timeout".into(), "15".into(), "--retries".into(), "1".into(), "--playlist-start".into(), start.to_string(), "--playlist-end".into(), end.to_string(), format!("ytsearch{end}:{query}")])
+        .output().await.map_err(|e| AppError::Extractor(e.to_string()))?;
+    if !output.status.success() {
+        return Err(AppError::Extractor("Discovery failed. Update yt-dlp or configure a Data API key in Settings → Account.".into()));
+    }
+    let data: Value = serde_json::from_slice(&output.stdout).map_err(|e| AppError::Extractor(e.to_string()))?;
+    let entries = data["entries"].as_array().ok_or_else(|| AppError::Extractor("Discovery returned no result list".into()))?;
+    let valid_id = regex::Regex::new(r"^[A-Za-z0-9_-]{11}$").unwrap();
+    let videos: Vec<Value> = entries.iter().filter_map(|v| {
+        let id = v["id"].as_str()?;
+        if !valid_id.is_match(id) { return None; }
+        let published = v["upload_date"].as_str()
+            .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y%m%d").ok())
+            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .map(|d| d.and_utc().to_rfc3339()).unwrap_or_default();
+        Some(serde_json::json!({
+            "id": id, "title": v["title"].as_str().unwrap_or("YouTube video"),
+            "channelId": v["channel_id"].as_str().unwrap_or(""),
+            "channelName": v["channel"].as_str().or(v["uploader"].as_str()).unwrap_or("YouTube"),
+            "thumb": format!("https://i.ytimg.com/vi/{id}/hqdefault.jpg"),
+            "publishedAt": published, "durationSec": v["duration"].as_f64().unwrap_or(0.0),
+            "views": v["view_count"].as_u64(), "description": v["description"].as_str()
+        }))
+    }).collect();
+    let next = if entries.len() == 24 && page < 11 { Some((page + 1).to_string()) } else { None };
+    Ok(serde_json::json!({ "videos": videos, "nextPageToken": next }))
 }

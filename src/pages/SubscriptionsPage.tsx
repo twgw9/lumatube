@@ -1,3 +1,8 @@
+import { useFeed } from "@/hooks/useFeed";
+import { FeedStatus } from "@/components/FeedStatus";
+import { resolvePublicChannel } from "@/lib/youtube";
+import { isTauri } from "@/lib/utils";
+import { resolveChannel } from "@/lib/bridge";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FolderPlus, Plus, Rss, Search, Users } from "lucide-react";
@@ -31,12 +36,21 @@ export function SubscriptionsPage() {
     return list;
   }, [channels, activeFolder, q]);
 
-  const videos = useMemo(() => {
-    const ids = new Set(visibleChannels.map((c) => c.id));
-    return demoVideos.filter(
-      (v) => ids.has(v.channelId) && (!hideShorts || !v.isShort),
-    );
-  }, [visibleChannels, hideShorts]);
+  const feed = useFeed("subscriptions", visibleChannels.filter(c => /^UC[\w-]{22}$/.test(c.id)).map(c => c.id));
+  const videos = feed.videos.filter(v => !hideShorts || !v.isShort);
+  const [channelInput, setChannelInput] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
+  async function subscribe() {
+    setAdding(true); setAddError("");
+    try {
+      const key = useSettings.getState().dataApiKey;
+      const channel = key ? await resolvePublicChannel(channelInput, key) : isTauri() ? await resolveChannel(channelInput) : null;
+      if (!channel || !/^UC[\w-]{22}$/.test(channel.id)) throw new Error("Channel could not be resolved. Browser mode needs a YouTube Data API key in Settings → Account.");
+      useLibrary.getState().addChannel({ ...channel, subscribed: true }); setChannelInput("");
+    } catch (err) { setAddError(err instanceof Error ? err.message : "Could not subscribe."); }
+    finally { setAdding(false); }
+  }
 
   return (
     <div className="mx-auto w-full max-w-[1680px] px-4 pb-16 pt-4 sm:px-6">
@@ -46,7 +60,7 @@ export function SubscriptionsPage() {
           <Users className="h-3 w-3" /> {channels.filter((c) => c.subscribed !== false).length} channels
         </Badge>
         <Badge tone="accent">
-          <Rss className="h-3 w-3" /> RSS based · zero quota
+          <Rss className="h-3 w-3" /> Local subscriptions · RSS or Data API
         </Badge>
         <div className="ml-auto flex items-center gap-2">
           <Segmented
@@ -64,6 +78,9 @@ export function SubscriptionsPage() {
         </div>
       </div>
 
+      <form className="mb-3 flex gap-2" onSubmit={e => { e.preventDefault(); void subscribe(); }}><Input aria-label="Channel URL or handle" placeholder="YouTube channel URL, @handle or UC channel ID" value={channelInput} onChange={e => setChannelInput(e.target.value)} /><Button type="submit" disabled={adding || !channelInput.trim()}>{adding ? "Finding…" : "Subscribe"}</Button></form>
+      {addError && <p role="alert" className="text-sm text-amber-400">{addError}</p>}
+      <FeedStatus {...feed} />
       {/* folder chips */}
       <div className="mb-4 flex flex-wrap items-center gap-1.5">
         <button

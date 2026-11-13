@@ -1,5 +1,6 @@
+import { useInterests } from "@/store/interests";
 import { Link } from "react-router-dom";
-import { Clock, Check, Download, MoreVertical, Play, Trash2 } from "lucide-react";
+import { Clock, Check, Download, MoreVertical, Play, Trash2, EyeOff } from "lucide-react";
 import type { Video } from "@/lib/types";
 import { cn, formatCount, formatTime, timeAgo } from "@/lib/utils";
 import { useLibrary } from "@/store/library";
@@ -138,7 +139,7 @@ export function VideoCard({ video, layout = "grid", showChannel = true, onRemove
       </Link>
 
       {/* contextual menu */}
-      <div className="absolute right-1 top-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <div className="absolute right-1 top-2 opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         <button
           onClick={(e) => {
             e.preventDefault();
@@ -154,8 +155,9 @@ export function VideoCard({ video, layout = "grid", showChannel = true, onRemove
             className="absolute right-0 top-8 z-20 w-48 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] p-1 text-[13px] shadow-2xl anim-pop"
             onMouseLeave={() => setMenuOpen(false)}
           >
-            <MenuItem icon={<Download className="h-4 w-4" />} label="Download" />
-            <MenuItem icon={<Play className="h-4 w-4" />} label="Play next" />
+            <MenuItem icon={<EyeOff className="h-4 w-4" />} label="Not interested" onClick={() => { useInterests.getState().dismiss(video.id); setMenuOpen(false); }} />
+            <MenuItem icon={<Download className="h-4 w-4" />} label="Download" onClick={() => { window.location.hash = `#/watch/${video.id}`; setMenuOpen(false); }} />
+            <MenuItem icon={<Play className="h-4 w-4" />} label="Watch now" onClick={() => { window.location.hash = `#/watch/${video.id}`; setMenuOpen(false); }} />
             {onRemove && (
               <MenuItem
                 icon={<Trash2 className="h-4 w-4" />}

@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "test:regression": "node scripts/regression.mjs && node scripts/feed-tests.mjs && node scripts/feed-hook-tests.mjs && node scripts/recommendation-tests.mjs && node scripts/personalized-hook-tests.mjs && node scripts/inbox-tests.mjs"
   },
   "dependencies": {
     "@tauri-apps/plugin-notification": "^2.8.1",

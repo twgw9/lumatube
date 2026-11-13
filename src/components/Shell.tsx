@@ -1,3 +1,6 @@
+import { NotificationInbox } from "@/components/NotificationInbox";
+import { useInterests } from "@/store/interests";
+import { ProfileMenu } from "@/components/ProfileMenu";
 import { WelcomeTour } from "@/components/WelcomeTour";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -319,7 +322,7 @@ function TopBar({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+          if (q.trim()) { useInterests.getState().record(q); navigate(`/search?q=${encodeURIComponent(q.trim())}`); }
         }}
         className="relative mx-auto flex max-w-2xl flex-1 items-center"
       >
@@ -349,13 +352,8 @@ function TopBar({
         <IconButton label="Downloads" onClick={() => navigate("/downloads")} className="h-9 w-9">
           <Download className="h-4.5 w-4.5" />
         </IconButton>
-        <button
-          onClick={() => navigate("/settings/account")}
-          className="ml-1 grid h-8 w-8 place-items-center rounded-full bg-[var(--bg-elev-2)] text-[11px] font-bold ring-1 ring-[var(--border)]"
-          title="Account"
-        >
-          LT
-        </button>
+        <NotificationInbox />
+        <ProfileMenu />
       </div>
     </header>
   );

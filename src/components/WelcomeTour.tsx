@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useSettings } from "@/store/settings";
 import { Button, Switch } from "./ui";
 const steps = [
-  ["Welcome to LumaTube", "A personal space for videos, offline viewing and a calmer feed. This browser preview plays a sample clip; real YouTube playback needs the native extractor."],
-  ["Watch your way", "Use up to 4× speed, quality controls, chapters, a sleep timer and SponsorBlock. Quality depends on the available source, not a Premium subscription."],
+  ["Welcome to LumaTube", "A personal space for videos, offline viewing and a calmer feed. Browser playback uses official YouTube embeds. Add a Data API key for public feeds/search, or use native RSS subscriptions without a key."],
+  ["Watch your way", "Native playback offers up to 4× speed, quality controls, chapters, a sleep timer and SponsorBlock. Official browser embeds have their own controls. Quality depends on the available source, not a Premium subscription."],
   ["Make it yours", "Pick colours and themes in Settings. Hide notes, pause history, disable recommendations, and set your download storage limit. Auto-download starts off."],
   ["Local first, always your choice", "Your library stays on this device. External services receive requests when used. Google sign-in and Android background downloads are still in development. See About for source and update details."],
 ];

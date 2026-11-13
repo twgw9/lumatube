@@ -206,16 +206,20 @@ pub struct StartDownloadResult {
 pub async fn start_download(
     app: AppHandle,
     req: DownloadRequest,
+    job_id: String,
 ) -> AppResult<StartDownloadResult> {
-    let job_id = format!("dl_{}", chrono::Utc::now().timestamp_millis());
+    if job_id.len() > 80 || !job_id.starts_with("dl_") || !job_id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+        return Err(AppError::Other("Invalid download job ID".into()));
+    }
     vault::spawn_download(app, req, job_id.clone()).await?;
     Ok(StartDownloadResult { job_id })
 }
 
 #[tauri::command]
 pub async fn cancel_download(state: State<'_, Arc<VaultState>>, job_id: String) -> AppResult<()> {
-    if let Ok(mut map) = state.running.lock() {
-        map.remove(&job_id);
+    let child = state.running.lock().map_err(|_| AppError::Other("Download state locked".into()))?.remove(&job_id);
+    if let Some(child) = child {
+        child.kill().map_err(|e| AppError::Other(format!("Could not cancel download: {e}")))?;
     }
     Ok(())
 }

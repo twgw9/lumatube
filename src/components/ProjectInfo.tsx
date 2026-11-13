@@ -27,7 +27,7 @@ export function ProjectInfo() {
         <div className="flex flex-wrap gap-2">{["Local library", "4× playback", "Timestamped notes", "SponsorBlock", "Custom themes", "No AI summaries"].map(x => <Badge key={x}>{x}</Badge>)}</div>
         <p>Source repository: <strong>{PROJECT.owner}/{PROJECT.repo}</strong>. Source availability is not a security audit. Review the code and build instructions before trusting a build. No open-source license has been declared yet.</p>
         <p>History and preferences are stored on this device. Playback, thumbnails and optional community services contact external servers. Google login and encrypted sync are not implemented yet.</p>
-        <p>[Unofficial / Risky] YouTube extraction and community metadata may break. Fallback: update the extractor, disable enrichment, or watch on YouTube. Browser mode uses a bundled Big Buck Bunny sample (Blender Foundation, CC BY 3.0).</p>
+        <p>[Unofficial / Risky] YouTube extraction and community metadata may break. Fallback: update the extractor, disable enrichment, or watch on YouTube. Browser playback uses official YouTube embeds; ads, regional restrictions and embed errors may apply. Public feeds require your Data API key. Native playback currently exposes combined audio/video formats only.</p>
         <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => void openExternal(PROJECT.url)}>View source</Button><Button size="sm" onClick={() => void openExternal(`${PROJECT.url}/issues`)}>Report an issue</Button></div>
       </div>
     </SettingsSection>

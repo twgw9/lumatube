@@ -1,3 +1,6 @@
+import { useInterests } from "@/store/interests";
+import { useFeed } from "@/hooks/useFeed";
+import { FeedStatus } from "@/components/FeedStatus";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search as SearchIcon, Sparkles, Youtube } from "lucide-react";
@@ -16,14 +19,8 @@ export function SearchPage() {
 
   useEffect(() => setInput(q), [q]);
 
-  const results = useMemo(() => {
-    const query = q.toLowerCase();
-    if (!query) return [];
-    return demoVideos.filter((v) => {
-      if (hideShorts && v.isShort) return false;
-      return `${v.title} ${v.channelName} ${v.description ?? ""}`.toLowerCase().includes(query);
-    });
-  }, [q, hideShorts]);
+  const feed = useFeed("search", [], q);
+  const results = feed.videos.filter(v => !hideShorts || !v.isShort);
 
   const noteHits = useMemo(() => {
     const query = q.toLowerCase();
@@ -36,6 +33,7 @@ export function SearchPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          useInterests.getState().record(input);
           setParams({ q: input });
         }}
         className="mb-4 flex gap-2"
@@ -45,7 +43,7 @@ export function SearchPage() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Search local library…"
+            placeholder="Search YouTube…"
             className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] pl-10 pr-3 text-[14px] outline-none focus:border-[color-mix(in_oklab,var(--accent)_45%,var(--border))]"
           />
         </div>
@@ -56,14 +54,15 @@ export function SearchPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-mute)]">
         <Badge tone="accent">
-          <Sparkles className="h-3 w-3" /> Local search · 0 API quota
+          <Sparkles className="h-3 w-3" /> YouTube Data API · quota applies
         </Badge>
         <Badge>
-          <Youtube className="h-3 w-3" /> YouTube search on demand
+          <Youtube className="h-3 w-3" /> Public videos · API key required
         </Badge>
         <span>{results.length} results</span>
       </div>
 
+      <FeedStatus {...feed} />
       {results.length ? (
         <div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 xl:grid-cols-3">
           {results.map((v) => (

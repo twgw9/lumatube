@@ -67,6 +67,7 @@ pub fn run() {
             commands::refresh_feed,
             commands::get_feed,
             commands::search_videos,
+            feed::discover_videos,
             // community metadata
             commands::fetch_segments,
             commands::fetch_dearrow,

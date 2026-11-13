@@ -577,7 +577,7 @@ export function PlayerSurface({
                   )}
                 >
                   Auto
-                  <span className="text-[10px] text-white/40">adaptive</span>
+                  <span className="text-[10px] text-white/40">best available</span>
                 </button>
                 {[...(stream?.qualities ?? [])]
                   .sort((a, b) => b.height - a.height)

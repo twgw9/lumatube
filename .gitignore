@@ -18,3 +18,4 @@ tsconfig.tsbuildinfo
 tsconfig.tsbuildinfo
 .smoke-run.mjs
 .smoke-out/
+third-party-notices/

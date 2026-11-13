@@ -4,7 +4,7 @@ import type { DownloadPreset, Video } from "@/lib/types";
 import { useLibrary } from "@/store/library";
 import { useSettings } from "@/store/settings";
 import { Button, Switch } from "@/components/ui";
-import { cn, formatBytes } from "@/lib/utils";
+import { cn, formatBytes, uid, isTauri } from "@/lib/utils";
 import { startDownload } from "@/lib/bridge";
 
 const PRESETS: { id: DownloadPreset; label: string; sub: string; perHour: number }[] = [
@@ -55,13 +55,16 @@ export function DownloadSheet({
   const estimate = (PRESETS.find((p) => p.id === preset)?.perHour ?? 0) * (video.durationSec / 3600);
 
   const submit = async () => {
+    if (!isTauri()) { window.alert("Downloads require the native desktop app; no download was started."); return; }
     const used = useLibrary.getState().downloads.filter((d) => d.status !== "canceled" && d.status !== "error").reduce((n, d) => n + Math.max(d.bytesDone ?? 0, d.bytesTotal ?? 0), 0);
     if (used + estimate > settings.maxStorageGb * 1024 ** 3) {
       window.alert("Storage limit reached. Remove downloads or increase your storage cap in Settings → Downloads.");
       return;
     }
     setBusy(true);
+    const jobId = uid("dl");
     enqueue({
+      id: jobId,
       videoId: video.id,
       title: video.title,
       channelName: video.channelName,
@@ -69,7 +72,7 @@ export function DownloadSheet({
       preset,
       showInGallery,
     });
-    await startDownload({
+    try { await startDownload({
       videoId: video.id,
       title: video.title,
       channelName: video.channelName,
@@ -80,7 +83,12 @@ export function DownloadSheet({
       embedThumbnail: embedThumb,
       embedChapters,
       embedSubs: settings.embedSubs,
-    });
+    }, jobId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      useLibrary.getState().updateDownload(jobId, { status: "error", error: message });
+      window.alert(message); setBusy(false); return;
+    }
     setBusy(false);
     setDone(true);
     window.setTimeout(onClose, 900);

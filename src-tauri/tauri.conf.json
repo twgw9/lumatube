@@ -27,22 +27,36 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost https: data: blob:; media-src 'self' asset: http://asset.localhost https: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://www.youtube.com https://i.ytimg.com https://www.googleapis.com https://sponsor.ajay.app https://dearrow.ajay.app https://returnyoutubedislikeapi.com https://feeds.youtube.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost https: data: blob:; media-src 'self' asset: http://asset.localhost https: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' https://api.github.com ipc: http://ipc.localhost https://www.youtube.com https://i.ytimg.com https://www.googleapis.com https://sponsor.ajay.app https://dearrow.ajay.app https://returnyoutubedislikeapi.com https://feeds.youtube.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$VIDEO/**", "$DOWNLOAD/**", "$HOME/**"]
+        "scope": [
+          "$VIDEO/**",
+          "$DOWNLOAD/**",
+          "$HOME/**"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "dmg", "appimage", "deb"],
-    "icon": ["icons/icon.png"],
-    "externalBin": ["binaries/yt-dlp", "binaries/ffmpeg"],
+    "targets": [
+      "msi",
+      "dmg",
+      "appimage",
+      "deb"
+    ],
+    "icon": [
+      "icons/icon.png"
+    ],
+    "externalBin": [
+      "binaries/yt-dlp",
+      "binaries/ffmpeg"
+    ],
     "resources": [],
     "copyright": "Personal use only",
     "category": "Entertainment",
     "shortDescription": "Local-first YouTube client",
-    "longDescription": "Ad-free subscription feed, downloads, notes, SponsorBlock and gallery integration — everything stored on your machine."
+    "longDescription": "Ad-free subscription feed, downloads, notes, SponsorBlock and gallery integration \u2014 everything stored on your machine."
   }
 }

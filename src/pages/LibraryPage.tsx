@@ -1,3 +1,6 @@
+import { useCatalog } from "@/store/catalog";
+import { useSearchParams } from "react-router-dom";
+import { useSettings } from "@/store/settings";
 import { useMemo, useState } from "react";
 import { Bookmark, Download, Folder, Heart, ListVideo, Plus, Trash2 } from "lucide-react";
 import { demoVideos } from "@/lib/mock";
@@ -10,16 +13,23 @@ type Tab = "playlists" | "liked" | "history" | "clips";
 
 export function LibraryPage() {
   const lib = useLibrary();
-  const [tab, setTab] = useState<Tab>("playlists");
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get("tab");
+  const tab: Tab = ["playlists", "liked", "history", "clips"].includes(requestedTab ?? "") ? requestedTab as Tab : "playlists";
+  const setTab = (value: Tab) => setParams({ tab: value });
+  const recordHistory = useSettings(s => s.recordHistory);
+  const [historyQuery, setHistoryQuery] = useState("");
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const videoMap = useMemo(() => new Map(demoVideos.map((v) => [v.id, v])), []);
+  const catalog = useCatalog(s => s.videos);
+  const videoMap = useMemo(() => new Map(Object.values(catalog).map(v => [v.id, v])), [catalog]);
 
   const likedVideos = lib.liked.map((id) => videoMap.get(id)).filter(Boolean) as typeof demoVideos;
-  const historyVideos = lib.history
-    .map((h) => videoMap.get(h.videoId))
-    .filter(Boolean) as typeof demoVideos;
+  const historyVideos = Array.from(new Map(lib.history.map(h => [h.videoId, videoMap.get(h.videoId) ?? {
+    id: h.videoId, title: h.title, channelName: h.channelName, channelId: "", thumb: h.thumb,
+    publishedAt: new Date(h.watchedAt).toISOString(), durationSec: 0,
+  }])).values()).filter(v => `${v.title} ${v.channelName}`.toLowerCase().includes(historyQuery.toLowerCase()));
 
   return (
     <div className="mx-auto w-full max-w-[1680px] px-4 pb-16 pt-4 sm:px-6">
@@ -134,8 +144,11 @@ export function LibraryPage() {
 
       {tab === "history" && (
         <>
-          <div className="mb-3 flex justify-end">
-            <Button size="sm" variant="ghost" onClick={lib.clearHistory}>
+          <p className="mb-3 text-sm text-[var(--text-dim)]">Guest history · saved on this device · {recordHistory ? "Recording on" : "Paused (progress saving also paused)"}</p>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Input aria-label="Search watch history" placeholder="Search watch history" value={historyQuery} onChange={e => setHistoryQuery(e.target.value)} className="max-w-sm" />
+            <Button size="sm" onClick={() => useSettings.getState().set("recordHistory", !recordHistory)}>{recordHistory ? "Pause history" : "Resume history"}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { if (window.confirm("Clear local watch history? Saved playback progress will remain.")) lib.clearHistory(); }}>
               <Trash2 className="h-3.5 w-3.5" /> Clear history
             </Button>
           </div>
@@ -146,7 +159,7 @@ export function LibraryPage() {
               </li>
             ))}
           </ul>
-          {!historyVideos.length && <EmptyState icon={<Bookmark className="h-6 w-6" />} title="History is empty" />}
+          {!historyVideos.length && <EmptyState icon={<Bookmark className="h-6 w-6" />} title={historyQuery ? "No matching history" : "History is empty"} />}
         </>
       )}
 

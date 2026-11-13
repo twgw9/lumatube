@@ -1,3 +1,4 @@
+import { cancelDownload } from "@/lib/bridge";
 import { useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -151,9 +152,14 @@ export function DownloadsPage() {
             <DownloadRow
               key={job.id}
               job={job}
-              onPause={() => updateDownload(job.id, { status: "paused" })}
-              onResume={() => updateDownload(job.id, { status: "running" })}
-              onRemove={() => removeDownload(job.id)}
+              onPause={() => window.alert("Pause/resume is not implemented yet. Cancel the download instead.")}
+              onResume={() => window.alert("Resume is not implemented in this build.")}
+              onRemove={async () => {
+                try {
+                  if (["running", "queued", "paused"].includes(job.status)) await cancelDownload(job.id);
+                  removeDownload(job.id);
+                } catch (err) { window.alert(err instanceof Error ? err.message : String(err)); }
+              }}
               onToggleGallery={(v) => updateDownload(job.id, { showInGallery: v })}
               onReveal={() => job.filePath && revealInFolder(job.filePath)}
             />
@@ -260,12 +266,12 @@ function DownloadRow({
 
         <div className="flex shrink-0 items-center gap-0.5">
           {running && (
-            <IconButton label="Pause" className="h-8 w-8" onClick={onPause}>
+            <IconButton label="Pause unavailable in this build" disabled className="h-8 w-8" onClick={onPause}>
               <Pause className="h-4 w-4" />
             </IconButton>
           )}
           {job.status === "paused" && (
-            <IconButton label="Resume" className="h-8 w-8" onClick={onResume}>
+            <IconButton label="Resume unavailable in this build" disabled className="h-8 w-8" onClick={onResume}>
               <Play className="h-4 w-4" />
             </IconButton>
           )}
