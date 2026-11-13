@@ -45,7 +45,14 @@ jobs:
       - name: Generate platform icons
         run: npx tauri icon public/logo.svg
       - name: Build unsigned NSIS preview installer
-        run: npx tauri build --bundles nsis
+        shell: pwsh
+        run: |
+          & npx.cmd tauri build --bundles nsis 2>&1 | Tee-Object -Variable buildLog
+          if ($LASTEXITCODE -ne 0) {
+            $diagnostics = (($buildLog | Select-Object -Last 180 | ForEach-Object { $_.ToString().Replace('%','%25') }) -join '%0A')
+            Write-Output "::error title=Native build diagnostics::$diagnostics"
+            exit 1
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: LumaTube-Windows-preview-unsigned
