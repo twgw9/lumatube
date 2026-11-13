@@ -1,0 +1,174 @@
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import type { Density, DownloadPreset, Engine, FeedTab, ThemeName } from "@/lib/types";
+
+export interface Settings {
+  /* appearance */
+  theme: ThemeName;
+  accent: string;
+  density: Density;
+  motion: "full" | "reduced";
+  foldThumbs: boolean;
+
+  /* playback */
+  engine: Engine;
+  defaultSpeed: number;
+  rememberSpeedPerChannel: boolean;
+  defaultQuality: "auto" | "1080p" | "720p" | "480p";
+  autoplayNext: boolean;
+  resumePlayback: boolean;
+  seekStepSec: number;
+  volume: number;
+
+  /* focus / anti-algorithm */
+  focusMode: boolean;
+  hideRecommendations: boolean;
+  hideComments: boolean;
+  hideShorts: boolean;
+  hideEndScreen: boolean;
+  hideSidebarRecs: boolean;
+  hideLiveChat: boolean;
+  autoPlayDisabledInFocus: boolean;
+  keywordBlocklist: string[];
+  channelBlocklist: string[];
+  dailyWatchLimitMin: number; // 0 = off
+
+  /* enrich */
+  sponsorBlock: boolean;
+  sponsorCategories: string[];
+  sponsorMuteInsteadOfSkip: boolean;
+  dearrow: boolean;
+  showOriginalTitles: boolean;
+  returnYoutubeDislike: boolean;
+
+  /* downloads */
+  downloadPreset: DownloadPreset;
+  downloadFolder: string;
+  showDownloadsInGallery: boolean;
+  downloadSubfoldersByChannel: boolean;
+  embedThumbnail: boolean;
+  embedChapters: boolean;
+  embedSubs: boolean;
+  sponsorCutOnDownload: boolean;
+  downloadConcurrency: number;
+  wifiOnlyDownloads: boolean;
+  maxStorageGb: number;
+  autoDownloadNewVideos: boolean;
+  autoDownloadPreset: DownloadPreset;
+
+  /* data */
+  syncEnabled: boolean;
+  backupOnQuit: boolean;
+
+  /* account */
+  googleConnected: boolean;
+  googleEmail: string | null;
+  dataApiKey: string;
+  oauthClientId: string;
+
+  /* sync folder */
+  syncFolder: string;
+
+  /* tabs */
+  homeTabs: FeedTab[];
+}
+
+export const defaultSettings: Settings = {
+  theme: "oled",
+  accent: "#2dd4bf",
+  density: "comfortable",
+  motion: "full",
+  foldThumbs: false,
+
+  engine: "auto",
+  defaultSpeed: 1,
+  rememberSpeedPerChannel: true,
+  defaultQuality: "auto",
+  autoplayNext: true,
+  resumePlayback: true,
+  seekStepSec: 10,
+  volume: 1,
+
+  focusMode: false,
+  hideRecommendations: false,
+  hideComments: false,
+  hideShorts: false,
+  hideEndScreen: true,
+  hideSidebarRecs: false,
+  hideLiveChat: true,
+  autoPlayDisabledInFocus: true,
+  keywordBlocklist: [],
+  channelBlocklist: [],
+  dailyWatchLimitMin: 0,
+
+  sponsorBlock: true,
+  sponsorCategories: ["sponsor", "selfpromo", "interaction", "intro", "outro"],
+  sponsorMuteInsteadOfSkip: false,
+  dearrow: true,
+  showOriginalTitles: false,
+  returnYoutubeDislike: true,
+
+  downloadPreset: "1080p",
+  downloadFolder: "~/Videos/LocalTube",
+  showDownloadsInGallery: true,
+  downloadSubfoldersByChannel: true,
+  embedThumbnail: true,
+  embedChapters: true,
+  embedSubs: false,
+  sponsorCutOnDownload: false,
+  downloadConcurrency: 2,
+  wifiOnlyDownloads: false,
+  maxStorageGb: 50,
+  autoDownloadNewVideos: false,
+  autoDownloadPreset: "480p",
+
+  syncEnabled: false,
+  backupOnQuit: false,
+
+  googleConnected: false,
+  googleEmail: null,
+  dataApiKey: "",
+  oauthClientId: "",
+
+  syncFolder: "~/LocalTube/sync",
+
+  homeTabs: [
+    { id: "t_new", label: "Aaj ke naye", kind: "feed", icon: "sparkles" },
+    { id: "t_continue", label: "Continue watching", kind: "continue", icon: "play" },
+    { id: "t_tech", label: "Tech", kind: "folder", icon: "folder", folderId: "f_tech" },
+    { id: "t_music", label: "Music", kind: "folder", icon: "music", folderId: "f_music" },
+  ],
+};
+
+export const ACCENTS = [
+  { name: "Teal", value: "#2dd4bf" },
+  { name: "Red", value: "#f43f5e" },
+  { name: "Amber", value: "#f59e0b" },
+  { name: "Violet", value: "#a78bfa" },
+  { name: "Blue", value: "#60a5fa" },
+  { name: "Lime", value: "#a3e635" },
+  { name: "Orange", value: "#fb923c" },
+  { name: "Pink", value: "#ec4899" },
+];
+
+export const SPEEDS = [
+  0.25, 0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3,
+];
+
+interface SettingsStore extends Settings {
+  set: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
+  patch: (p: Partial<Settings>) => void;
+  reset: () => void;
+}
+
+export const useSettings = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      ...defaultSettings,
+      set: (key, value) => set({ [key]: value } as Partial<Settings>),
+      patch: (p) => set(p),
+      reset: () => set(defaultSettings),
+    }),
+    { name: "localtube.settings.v1" },
+  ),
+);

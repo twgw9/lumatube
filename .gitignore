@@ -1,0 +1,17 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Rust
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+*.pdb
+
+# local build artefacts
+.playwright/
+tsconfig.tsbuildinfo

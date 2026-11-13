@@ -1,0 +1,300 @@
+import type { Chapter, Segment, SponsorCategory, Video } from "@/lib/types";
+import { demoTranscript, demoSegments } from "@/lib/mock";
+import { isTauri } from "@/lib/utils";
+
+/* ───────────────────────────────────────────────────────────────
+   bridge.ts — single frontend entry point to the Rust backend.
+
+   Every call has a browser fallback so the UI can be developed and
+   demoed in a plain browser (npm run dev) while the Tauri build uses
+   the real Rust commands. Command names match src-tauri/src/commands.rs.
+   ─────────────────────────────────────────────────────────────── */
+
+async function invokeSafe<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
+  if (!isTauri()) return null;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return await invoke<T>(cmd, args);
+  } catch (err) {
+    console.warn(`[bridge] ${cmd} failed`, err);
+    return null;
+  }
+}
+
+/* ── streams ─────────────────────────────────────────────────── */
+
+export interface StreamInfo {
+  videoUrl?: string;
+  audioUrl?: string;
+  muxedUrl?: string;
+  durationSec: number;
+  source: "ytdlp" | "innertube" | "instance" | "official" | "demo";
+  qualities: { label: string; height: number; url: string; sizeBytes?: number }[];
+  expiresAt?: number;
+}
+
+export async function resolveStream(videoId: string, preferredQuality = "auto"): Promise<StreamInfo> {
+  const real = await invokeSafe<StreamInfo>("resolve_stream", {
+    videoId,
+    preferredQuality,
+  });
+  if (real) return real;
+  // browser demo: Big Buck Bunny-style public sample so the player feels real
+  const url =
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
+  return {
+    muxedUrl: url,
+    durationSec: 15,
+    source: "demo",
+    qualities: [
+      { label: "1080p", height: 1080, url },
+      { label: "720p", height: 720, url },
+      { label: "480p", height: 480, url },
+    ],
+  };
+}
+
+/* ── feeds ───────────────────────────────────────────────────── */
+
+export async function refreshSubscriptionFeed(channelIds: string[]): Promise<Video[]> {
+  const real = await invokeSafe<Video[]>("refresh_feed", { channelIds });
+  return real ?? [];
+}
+
+export async function resolveChannelHandle(handle: string): Promise<{ id: string; name: string } | null> {
+  return invokeSafe("resolve_channel", { handle });
+}
+
+/* ── enrichment ──────────────────────────────────────────────── */
+
+const SB_BASE = "https://sponsor.ajay.app";
+
+/** SponsorBlock via the privacy-preserving hash-prefix endpoint (no full id sent). */
+export async function fetchSkipSegments(
+  videoId: string,
+  categories: string[],
+): Promise<Segment[]> {
+  const real = await invokeSafe<Segment[]>("fetch_segments", { videoId, categories });
+  if (real) return real;
+
+  // browser fallback: try the public API directly, else demo data
+  try {
+    const hash = await sha256(videoId);
+    const prefix = hash.slice(0, 4);
+    const params = new URLSearchParams();
+    for (const c of categories) params.append("category", c);
+    const res = await fetch(`${SB_BASE}/api/skipSegments/${prefix}?${params}`, {
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const groups: {
+      videoID: string;
+      segments: { category: SponsorCategory; actionType: string; segment: [number, number]; UUID: string }[];
+    }[] = await res.json();
+    const mine = groups.find((g) => g.videoID === videoId);
+    if (!mine) return demoSegments[videoId] ?? [];
+    return mine.segments.map((s) => ({
+      category: s.category,
+      startSec: s.segment[0],
+      endSec: s.segment[1],
+      action: s.actionType === "mute" ? "mute" : s.actionType === "full" ? "full" : "skip",
+      uuid: s.UUID,
+    }));
+  } catch {
+    return demoSegments[videoId] ?? [];
+  }
+}
+
+export async function fetchDeArrow(videoIds: string[]) {
+  const real = await invokeSafe<Record<string, { title?: string; thumb?: string }>>(
+    "fetch_dearrow",
+    { videoIds },
+  );
+  return real ?? {};
+}
+
+export async function fetchDislikes(videoId: string) {
+  const real = await invokeSafe<{ likes: number; dislikes: number; views: number }>(
+    "fetch_votes",
+    { videoId },
+  );
+  if (real) return real;
+  try {
+    const res = await fetch(
+      `https://returnyoutubedislikeapi.com/votes?videoId=${videoId}`,
+      { signal: AbortSignal.timeout(6000) },
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as { likes: number; dislikes: number; views: number };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchTranscript(videoId: string) {
+  const real = await invokeSafe<{ t: number; text: string }[]>("fetch_transcript", { videoId });
+  return real ?? demoTranscript[videoId] ?? [];
+}
+
+export function parseChaptersFromDescription(desc?: string): Chapter[] {
+  if (!desc) return [];
+  const out: Chapter[] = [];
+  const re = /^\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—:]\s*(.+)$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(desc))) {
+    const parts = m[1].split(":").map(Number);
+    const sec = parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : parts[0] * 60 + parts[1];
+    out.push({ startSec: sec, title: m[2].trim() });
+  }
+  return out;
+}
+
+/* ── downloads ───────────────────────────────────────────────── */
+
+export interface DownloadRequest {
+  videoId: string;
+  title: string;
+  channelName: string;
+  preset: string;
+  folder: string;
+  showInGallery: boolean;
+  sponsorCut: boolean;
+  embedThumbnail: boolean;
+  embedChapters: boolean;
+  embedSubs: boolean;
+}
+
+export async function startDownload(req: DownloadRequest): Promise<{ jobId: string } | null> {
+  return invokeSafe("start_download", { req });
+}
+export async function pauseDownload(jobId: string) {
+  return invokeSafe("pause_download", { jobId });
+}
+export async function resumeDownload(jobId: string) {
+  return invokeSafe("resume_download", { jobId });
+}
+export async function cancelDownload(jobId: string) {
+  return invokeSafe("cancel_download", { jobId });
+}
+export async function revealInFolder(path: string) {
+  return invokeSafe("reveal_in_folder", { path });
+}
+export async function updateExtractor(): Promise<{ version: string; updatedAt: number } | null> {
+  return invokeSafe("update_extractor");
+}
+
+/* ── system ──────────────────────────────────────────────────── */
+
+export async function getExtractorStatus() {
+  const real = await invokeSafe<{ version: string; updatedAt: number; available: boolean }>(
+    "extractor_status",
+  );
+  return real ?? { version: "browser-demo", updatedAt: Date.now(), available: false };
+}
+
+export async function googleSignIn(): Promise<{ email: string } | null> {
+  return invokeSafe("google_sign_in");
+}
+export async function googleSignOut() {
+  return invokeSafe("google_sign_out");
+}
+export async function importTakeout(filePath: string) {
+  return invokeSafe<{ imported: number }>("import_takeout", { filePath });
+}
+
+/* ── helpers ─────────────────────────────────────────────────── */
+
+async function sha256(text: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ── persistence (Rust-backed, silent no-op in browser) ───── */
+
+export interface ProgressPayload {
+  videoId: string;
+  positionSec: number;
+  durationSec: number;
+  percent: number;
+  completed: boolean;
+}
+
+export async function persistProgress(p: ProgressPayload) {
+  return invokeSafe("save_progress", { progress: p });
+}
+
+export async function loadProgress(videoId: string) {
+  return invokeSafe<ProgressPayload>("get_progress", { videoId });
+}
+
+export async function persistHistory(event: {
+  videoId: string;
+  title: string;
+  channelName: string;
+  thumb: string;
+  secondsWatched: number;
+  source: string;
+  watchedAt: number;
+}) {
+  return invokeSafe("push_history", { event });
+}
+
+export async function listChannels() {
+  return invokeSafe<{ id: string; name: string; avatar?: string; handle?: string }[]>("list_channels");
+}
+
+export async function addChannel(channel: Record<string, unknown>) {
+  return invokeSafe("add_channel", { channel });
+}
+
+export async function getFeed(limit = 100) {
+  return invokeSafe<unknown[]>("get_feed", { limit });
+}
+
+/** Subscribe to download progress from the Rust side. Returns an unsubscribe fn. */
+export async function onDownloadProgress(
+  cb: (e: {
+    jobId: string;
+    progress: number;
+    bytesDone?: number;
+    bytesTotal?: number;
+    speedBps?: number;
+    etaSec?: number;
+    stage: string;
+  }) => void,
+): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const un = await listen<Parameters<typeof cb>[0]>("download://progress", (e) => cb(e.payload));
+    return un;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function onDownloadDone(
+  cb: (e: { jobId: string; filePath: string; bytesTotal: number; inGallery: boolean }) => void,
+): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const un = await listen<Parameters<typeof cb>[0]>("download://done", (e) => cb(e.payload));
+    return un;
+  } catch {
+    return () => {};
+  }
+}
+
+export async function onDownloadError(
+  cb: (e: { jobId: string; error: string }) => void,
+): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  try {
+    const { listen } = await import("@tauri-apps/api/event");
+    const un = await listen<Parameters<typeof cb>[0]>("download://error", (e) => cb(e.payload));
+    return un;
+  } catch {
+    return () => {};
+  }
+}
