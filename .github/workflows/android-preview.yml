@@ -51,6 +51,7 @@ jobs:
           set -o pipefail
           if ! gradle -p android :app:assembleDebug :app:lintDebug --no-daemon --console plain > android-build.log 2>&1; then
             tail -120 android-build.log
+            find android/app/build/intermediates/lint_intermediate_text_report -type f -exec cat {} \; >> android-build.log 2>/dev/null || true
             python3 scripts/ci-diagnostics.py android-build.log
             exit 1
           fi

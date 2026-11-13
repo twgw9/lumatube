@@ -21,6 +21,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.VideoStream
 import java.util.concurrent.Executors
 
+@androidx.media3.common.util.UnstableApi
 class PlayerActivity : Activity() {
     private lateinit var player: ExoPlayer
     private lateinit var message: TextView
