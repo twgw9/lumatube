@@ -46,12 +46,26 @@ jobs:
         run: npx tauri icon public/logo.svg
       - name: Build unsigned NSIS preview installer
         shell: pwsh
+        env:
+          CARGO_TERM_COLOR: never
+          CARGO_BUILD_JOBS: 2
         run: |
-          & npx.cmd tauri build --bundles nsis 2>&1 | Tee-Object -Variable buildLog
-          if ($LASTEXITCODE -ne 0) {
-            $diagnostics = (($buildLog | Select-Object -Last 180 | ForEach-Object { $_.ToString().Replace('%','%25') }) -join '%0A')
-            Write-Output "::error title=Native build diagnostics::$diagnostics"
-            exit 1
+          cmd /c "npx tauri build --bundles nsis > native-build.log 2>&1"
+          $buildExit = $LASTEXITCODE
+          $tail = Get-Content native-build.log -Tail 140
+          $tail | ForEach-Object { Write-Output $_ }
+          if ($buildExit -ne 0) {
+            $chunk = ''
+            foreach ($line in $tail) {
+              $clean = $line.Substring(0, [Math]::Min($line.Length, 600)).Replace('%','%25')
+              if (($chunk.Length + $clean.Length) -gt 3000) {
+                Write-Output "::error title=Native compiler output::$chunk"
+                $chunk = ''
+              }
+              $chunk += $clean + '%0A'
+            }
+            if ($chunk) { Write-Output "::error title=Native compiler output::$chunk" }
+            exit $buildExit
           }
       - uses: actions/upload-artifact@v4
         with:
