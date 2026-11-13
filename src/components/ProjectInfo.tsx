@@ -55,7 +55,7 @@ export function ProjectInfo() {
     <SettingsSection title="Updates from GitHub" description="Manual sideload updates — you stay in control.">
       <div className="space-y-3 py-4 text-sm text-[var(--text-dim)]">
         <p>Check published releases, read changes, then download the correct APK on your phone. Android asks you to approve installation. No silent installs or automatic APK execution.</p>
-        <p>Updates require the same application ID and signing key. No Android APK is published by this setup yet; native playback, gallery integration and background download services still need Android implementation and device tests.</p>
+        <p>Updates require the same application ID and signing key. Android debug previews use native extraction, Media3 playback and system downloads. Device verification is still required; production release signing is not configured.</p>
         <div className="flex flex-wrap gap-2"><Button size="sm" disabled={busy} onClick={() => void check()}>{busy ? "Checking…" : "Check for release"}</Button><Button size="sm" onClick={() => void openExternal(release ?? `${PROJECT.url}/releases`)}>Open releases</Button></div>
         <p role="status">{status}</p>
       </div>

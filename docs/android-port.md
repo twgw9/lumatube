@@ -1,23 +1,14 @@
-# LumaTube Android readiness and release plan
+# LumaTube Android preview status
 
-## Implemented shared UI
-Responsive bottom navigation, themes, first-launch skippable tour, local history toggle,
-optional notes, manual GitHub release discovery, download notification preference and
-native Tauri notification event integration (permission requested only when enabled).
-Notifications replace an item by stable job ID, at most once per 15 seconds, with
-percentage, bytes downloaded/remaining and ETA. These are text notifications while
-the app is active, NOT an Android foreground-service progress bar.
+Native Android implementation and debug APK pipeline are now in `android/` and
+`.github/workflows/android-preview.yml`. See [module notes](../android/README.md)
+for actual scope and limitations. Frontend build/regressions pass; Android CI and
+device verification are separate gates. Do not describe untested playback/downloads
+as verified.
 
-## NOT implemented / NOT device-tested
-- Android foreground download service (required for reliable background operation)
-- MediaStore/gallery scoped-storage bridge
-- Android extraction/playback engine replacing desktop yt-dlp/ffmpeg sidecars
-- OAuth Authorization Code + PKCE, callback handling and secure token storage
-- Signed APK build pipeline and APK releases
-- Silent auto-update (intentionally not offered)
-
-Desktop process sidecars are not an Android implementation. Do not ship the current
-crate as a working Android downloader. No APK is produced by this change.
+The preview uses NewPipeExtractor, Media3 and system DownloadManager rather than
+desktop sidecars. No custom foreground service is needed for DownloadManager jobs.
+No production signing key or public APK release is configured.
 
 ## APK update requirements
 Use one stable Android applicationId and keep the signing key private and backed up.
