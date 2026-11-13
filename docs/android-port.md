@@ -2,8 +2,14 @@
 
 Native Android implementation and debug APK pipeline are now in `android/` and
 `.github/workflows/android-preview.yml`. See [module notes](../android/README.md)
-for actual scope and limitations. Frontend build/regressions pass; Android CI and
-device verification are separate gates. Do not describe untested playback/downloads
+for actual scope and limitations. Frontend build/regressions and Android APK assembly + lint pass in
+[run 43482391240](https://github.com/twgw9/lumatube/actions/runs/43482391240)
+at commit `165c4b5`. Device verification remains a separate gate.
+
+[Download the debug APK artifact](https://github.com/twgw9/lumatube/actions/runs/43482391240/artifacts/14066366078)
+(GitHub login may be required; extract ZIP, then install `app-debug.apk`; Android 10+).
+Debug signing is not stable across builds; export local data before uninstalling an
+older build if Android rejects an update. Do not describe untested playback/downloads
 as verified.
 
 The preview uses NewPipeExtractor, Media3 and system DownloadManager rather than
