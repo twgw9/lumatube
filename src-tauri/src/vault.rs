@@ -280,11 +280,13 @@ pub async fn spawn_download(
     tauri::async_runtime::spawn(async move {
         let mut final_path = String::new();
         let mut finalized = false;
+        let mut last_error: Option<String> = None;
 
         while let Some(event) = rx.recv().await {
             match event {
-                CommandEvent::Stdout(line) => {
+                CommandEvent::Stdout(line) | CommandEvent::Stderr(line) => {
                     let text = String::from_utf8_lossy(&line);
+                    if text.contains("ERROR:") { last_error = Some(text.trim().to_string()); }
                     if let Some(p) = extract_destination(&text) {
                         if text.trim_start().starts_with("LUMATUBE_FILE:") || text.trim_start().starts_with("LUMATUBE_SUBS:") {
                             finalized = true;
@@ -299,15 +301,6 @@ pub async fn spawn_download(
                         let _ = app2.emit(
                             "download://stage",
                             serde_json::json!({ "jobId": job, "stage": text.trim() }),
-                        );
-                    }
-                }
-                CommandEvent::Stderr(line) => {
-                    let text = String::from_utf8_lossy(&line);
-                    if text.contains("ERROR") {
-                        let _ = app2.emit(
-                            "download://error",
-                            serde_json::json!({ "jobId": job, "error": text.trim() }),
                         );
                     }
                 }
@@ -346,7 +339,7 @@ pub async fn spawn_download(
                             "download://error",
                             serde_json::json!({
                                 "jobId": job,
-                                "error": format!("yt-dlp exit code {:?}", status.code)
+                                "error": last_error.unwrap_or_else(|| format!("yt-dlp exit code {:?}", status.code))
                             }),
                         );
                     }
@@ -553,7 +546,15 @@ pub async fn cut_segments(
 
 #[cfg(test)]
 mod tests {
-    use super::extract_destination;
+    use super::{extract_destination, parse_progress};
+    #[test]
+    fn parses_real_progress_line() {
+        let event = parse_progress("dl_test", "[download]  42.3% of 123.45MiB at 3.21MiB/s ETA 00:12").unwrap();
+        assert!((event.progress - 0.423).abs() < 0.0001);
+        assert_eq!(event.eta_sec, Some(12));
+        assert!(event.bytes_total.unwrap() > 120_000_000);
+        assert!(parse_progress("dl_test", "random log line").is_none());
+    }
     #[test]
     fn final_paths_and_subtitles() {
         assert_eq!(extract_destination(r#"LUMATUBE_FILE:"C:\\Videos\\clip.mp3""#), Some(r"C:\Videos\clip.mp3".into()));
