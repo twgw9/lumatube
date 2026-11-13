@@ -1,21 +1,18 @@
-import { useMemo } from "react";
+import { SubscribeButton } from "@/components/SubscribeButton";
 import { useParams } from "react-router-dom";
-import { Bell, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { demoChannels, demoVideos } from "@/lib/mock";
 import { useLibrary } from "@/store/library";
 import { VideoCard } from "@/components/VideoCard";
-import { Button, Badge, EmptyState } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
 import { formatCount, timeAgo } from "@/lib/utils";
 
 export function ChannelPage() {
   const { id = "" } = useParams();
-  const channel = useMemo(
-    () => useLibrary.getState().channels.find((c) => c.id === id) ?? demoChannels[0],
-    [id],
-  );
+  const channels = useLibrary(s => s.channels);
+  const channel = channels.find(c => c.id === id) ?? demoChannels.find(c => c.id === id);
+  if (!channel) return <EmptyState title="Channel not found" description="Open a channel from a video or your subscriptions." />;
   const videos = demoVideos.filter((v) => v.channelId === channel.id);
-  const toggleSubscribe = useLibrary((s) => s.toggleSubscribe);
-  const subscribed = useLibrary((s) => s.channels.find((c) => c.id === channel.id)?.subscribed);
 
   return (
     <div className="mx-auto w-full max-w-[1680px] px-4 pb-16 sm:px-6">
@@ -40,16 +37,7 @@ export function ChannelPage() {
             </p>
           </div>
           <div className="flex gap-2 pb-1">
-            <Button variant="secondary" size="md">
-              <Bell className="h-4 w-4" /> Notify
-            </Button>
-            <Button
-              variant={subscribed ? "secondary" : "primary"}
-              size="md"
-              onClick={() => toggleSubscribe(channel.id)}
-            >
-              {subscribed ? "Subscribed" : "Subscribe"}
-            </Button>
+            <SubscribeButton channel={channel} />
           </div>
         </div>
       </div>

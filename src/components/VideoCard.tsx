@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Clock, Check, Download, MoreVertical, Play, Trash2 } from "lucide-react";
 import type { Video } from "@/lib/types";
-import { cn, formatCount, formatTime, thumbUrl, timeAgo } from "@/lib/utils";
+import { cn, formatCount, formatTime, timeAgo } from "@/lib/utils";
 import { useLibrary } from "@/store/library";
 import { useSettings } from "@/store/settings";
 import { Badge } from "@/components/ui";
@@ -74,7 +74,8 @@ export function VideoCard({ video, layout = "grid", showChannel = true, onRemove
             loading="lazy"
             className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = thumbUrl(video.id, "mq");
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = "/media/thumbnail.svg";
             }}
           />
           {/* hover play affordance */}
@@ -205,7 +206,7 @@ function Thumb({ video, src, small }: { video: Video; src: string; small?: boole
         small ? "w-40" : "w-full",
       )}
     >
-      <img src={src} alt="" loading="lazy" className="aspect-video w-full object-cover" />
+      <img src={src} alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/media/thumbnail.svg"; }} loading="lazy" className="aspect-video w-full object-cover" />
       <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 py-0.5 text-[10.5px] font-medium tabular-nums text-white">
         {formatTime(video.durationSec)}
       </span>
@@ -242,7 +243,7 @@ export function VideoGrid({
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 min-[1200px]:grid-cols-3 min-[1800px]:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="anim-fade">
             <div className="skeleton aspect-video w-full rounded-[14px]" />
@@ -272,7 +273,7 @@ export function VideoGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-x-4 gap-y-7 sm:grid-cols-2 min-[1200px]:grid-cols-3 min-[1800px]:grid-cols-4">
       {videos.map((v) => (
         <VideoCard key={v.id} video={v} />
       ))}

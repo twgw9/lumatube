@@ -1,3 +1,4 @@
+import { WelcomeTour } from "@/components/WelcomeTour";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -18,6 +19,7 @@ import {
   Sparkles,
   Sun,
   Youtube,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLibrary } from "@/store/library";
@@ -42,8 +44,11 @@ export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const channels = useLibrary((s) => s.channels);
   const folders = useLibrary((s) => s.folders);
   const downloads = useLibrary((s) => s.downloads);
+  const showNotes = useSettings((s) => s.showNotes);
+  const visibleNav = NAV.filter((item) => showNotes || item.to !== "/notes");
   const theme = useSettings((s) => s.theme);
   const setSetting = useSettings((s) => s.set);
   const isWatch = location.pathname.startsWith("/watch/");
@@ -75,6 +80,12 @@ export function Shell() {
   }, [setSetting]);
 
   useEffect(() => setMobileNav(false), [location.pathname]);
+  useEffect(() => {
+    if (!mobileNav) return;
+    const close = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileNav(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [mobileNav]);
 
   return (
     <div className="flex h-full min-h-0 bg-[var(--bg)]">
@@ -82,17 +93,17 @@ export function Shell() {
       <aside
         className={cn(
           "relative hidden shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg)] transition-[width] duration-200 lg:flex",
-          collapsed ? "w-[76px]" : "w-[236px]",
+          collapsed ? "w-[76px]" : "w-[220px]",
         )}
       >
         <div className={cn("flex h-14 items-center gap-2 px-4", collapsed && "justify-center px-0")}>
           <Link to="/" className="flex items-center gap-2 overflow-hidden">
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--accent)] text-black">
-              <Youtube className="h-4.5 w-4.5" strokeWidth={2.4} />
+              <img src="/logo.svg" alt="LumaTube" className="h-8 w-8" />
             </span>
             {!collapsed && (
               <span className="truncate text-[15px] font-semibold tracking-tight">
-                Local<span className="text-[var(--accent)]">Tube</span>
+                Luma<span className="text-[var(--accent)]">Tube</span>
               </span>
             )}
           </Link>
@@ -109,7 +120,7 @@ export function Shell() {
 
         <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-4">
           <ul className="space-y-0.5">
-            {NAV.map((item) => (
+            {visibleNav.map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}
@@ -216,7 +227,7 @@ export function Shell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           onOpenPalette={() => setPaletteOpen(true)}
-          onToggleNav={() => setMobileNav((v) => !v)}
+          onToggleNav={() => { if (window.matchMedia("(min-width: 1024px)").matches) setCollapsed(v => !v); else setMobileNav(v => !v); }}
           onBack={isWatch ? () => navigate(-1) : undefined}
           extra={isWatch ? "watch" : undefined}
         />
@@ -226,8 +237,8 @@ export function Shell() {
         </main>
 
         {/* ── mobile bottom nav ────────────────────────── */}
-        <nav className="grid shrink-0 grid-cols-5 border-t border-[var(--border)] bg-[var(--bg)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-          {NAV.map((item) => (
+        <nav style={{ gridTemplateColumns: `repeat(${visibleNav.length}, minmax(0, 1fr))` }} className="grid shrink-0 border-t border-[var(--border)] bg-[var(--bg)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+          {visibleNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -246,6 +257,22 @@ export function Shell() {
         </nav>
       </div>
 
+      {mobileNav && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Navigation menu">
+          <button autoFocus aria-label="Close navigation" className="absolute inset-0 bg-black/65 backdrop-blur-sm" onClick={() => setMobileNav(false)} />
+          <aside className="relative flex h-full w-[min(320px,85vw)] flex-col border-r border-[var(--border)] bg-[var(--bg-elev)] p-4 shadow-2xl anim-pop">
+            <div className="mb-5 flex items-center gap-3"><img src="/logo.svg" alt="" className="h-10 w-10" /><strong className="text-lg">LumaTube</strong><IconButton label="Close menu" onClick={() => setMobileNav(false)} className="ml-auto h-10 w-10"><X className="h-5 w-5" /></IconButton></div>
+            <nav className="flex-1 overflow-y-auto space-y-1">
+              {visibleNav.map(item => <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileNav(false)} className={({isActive}) => cn("flex min-h-12 items-center gap-3 rounded-xl px-3 text-sm transition-colors", isActive ? "bg-accent-soft text-[var(--accent)]" : "text-[var(--text-dim)] hover:bg-[var(--bg-elev-2)]")}><item.icon className="h-5 w-5" />{item.label}</NavLink>)}
+              <p className="px-3 pt-6 pb-2 text-xs uppercase tracking-widest text-[var(--text-mute)]">Subscribed channels</p>
+              {channels.filter(c => c.subscribed !== false).map(c => <Link onClick={() => setMobileNav(false)} key={c.id} to={`/channel/${c.id}`} className="flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm hover:bg-[var(--bg-elev-2)]"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-soft text-xs text-[var(--accent)]">{c.name.slice(0,1)}</span><span className="truncate">{c.name}</span></Link>)}
+              <Link to="/subscriptions" onClick={() => setMobileNav(false)} className="flex min-h-11 items-center gap-3 px-3 text-sm text-[var(--accent)]"><Plus className="h-4 w-4" />Manage subscriptions</Link>
+            </nav>
+            <Link to="/settings" onClick={() => setMobileNav(false)} className="mt-3 flex min-h-12 items-center gap-3 rounded-xl border border-[var(--border)] px-3 text-sm"><Settings className="h-5 w-5" />Settings & appearance</Link>
+          </aside>
+        </div>
+      )}
+      <WelcomeTour />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       {/* theme quick toggle floating (desktop) */}
@@ -283,7 +310,7 @@ function TopBar({
           <ArrowLeft className="h-4.5 w-4.5" />
         </IconButton>
       ) : (
-        <IconButton label="Menu" onClick={onToggleNav} className="h-9 w-9 shrink-0 lg:hidden">
+        <IconButton label="Menu" onClick={onToggleNav} className="h-9 w-9 shrink-0">
           <Menu className="h-5 w-5" />
         </IconButton>
       )}
@@ -294,15 +321,15 @@ function TopBar({
           e.preventDefault();
           if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
         }}
-        className="relative flex max-w-xl flex-1 items-center"
+        className="relative mx-auto flex max-w-2xl flex-1 items-center"
       >
         <Search className="pointer-events-none absolute left-3 h-4 w-4 text-[var(--text-mute)]" />
         <input
           ref={inputRef}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search videos, channels, notes…"
-          className="h-9.5 w-full rounded-full border border-[var(--border)] bg-[var(--bg-elev)] pl-9 pr-16 text-[13.5px] outline-none transition placeholder:text-[var(--text-mute)] focus:border-[color-mix(in_oklab,var(--accent)_45%,var(--border))] focus:bg-[var(--bg-elev-2)]"
+          placeholder="Search"
+          className="h-9.5 w-full rounded-full border border-[var(--border)] bg-[var(--bg-elev)] pl-10 pr-16 text-[13.5px] outline-none transition placeholder:text-[var(--text-mute)] focus:border-[color-mix(in_oklab,var(--accent)_45%,var(--border))] focus:bg-[var(--bg-elev-2)]"
         />
         <button
           type="button"

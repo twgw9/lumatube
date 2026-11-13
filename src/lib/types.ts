@@ -127,6 +127,10 @@ export interface DownloadJob {
 }
 
 export type DownloadPreset =
+  | "best"
+  | "8k"
+  | "1440p"
+  | "360p"
   | "1080p"
   | "4k"
   | "720p"
@@ -157,4 +161,4 @@ export interface FeedTab {
 }
 
 export type Density = "comfortable" | "compact" | "grid";
-export type ThemeName = "oled" | "graphite" | "sepia" | "light";
+export type ThemeName = "oled" | "graphite" | "sepia" | "light" | "midnight" | "forest" | "plum";

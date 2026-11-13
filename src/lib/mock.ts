@@ -209,7 +209,7 @@ export const demoDownloadSeed: DownloadJob[] = [
     progress: 1,
     bytesTotal: 268_435_456,
     bytesDone: 268_435_456,
-    filePath: "C:/Users/you/Videos/LocalTube/CodeWithHarry/Rust Ownership Explained Clearly.mp4",
+    filePath: "C:/Users/you/Videos/LumaTube/CodeWithHarry/Rust Ownership Explained Clearly.mp4",
     createdAt: now - 20 * H,
     finishedAt: now - 20 * H,
     showInGallery: true,

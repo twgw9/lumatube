@@ -1,3 +1,5 @@
+import { ProjectInfo } from "@/components/ProjectInfo";
+import { enableDownloadNotifications } from "@/lib/notifications";
 import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import {
@@ -129,6 +131,9 @@ function AppearanceSettings() {
               { id: "graphite", name: "Graphite", bg: "#121214", fg: "#f6f6f8" },
               { id: "sepia", name: "Sepia", bg: "#f6f0e4", fg: "#2a2118" },
               { id: "light", name: "Light", bg: "#fbfbfd", fg: "#16161b" },
+              { id: "midnight", name: "Midnight", bg: "#0a1020", fg: "#c7d2fe" },
+              { id: "forest", name: "Forest", bg: "#081812", fg: "#bbf7d0" },
+              { id: "plum", name: "Plum", bg: "#180d20", fg: "#f5d0fe" },
             ] as const
           ).map((t) => (
             <button
@@ -198,6 +203,12 @@ function AppearanceSettings() {
         />
       </SettingsSection>
 
+      <SettingsSection title="Workspace" description="Keep only the tools you use.">
+        <Switch checked={s.recordHistory} onChange={(v) => s.set("recordHistory", v)} label="Save watch history" description="Pause history without deleting existing entries." />
+        <Switch checked={s.showContinueWatching} onChange={(v) => s.set("showContinueWatching", v)} label="Continue watching on Home" />
+        <Row label="Welcome tour"><Button size="sm" onClick={() => s.set("onboardingDone", false)}>Replay tutorial</Button></Row>
+        <Switch checked={s.showNotes} onChange={(v) => s.set("showNotes", v)} label="Show notes section" description="Hide notes from navigation and the video panel without deleting any saved notes." />
+      </SettingsSection>
       <SettingsSection title="Home tabs" description="Build your own home screen.">
         <div className="space-y-1.5 py-3">
           {s.homeTabs.map((t) => (
@@ -497,6 +508,10 @@ function FocusSettings() {
 
 /* ── Downloads ─────────────────────────────────────────────── */
 const PRESETS: { value: DownloadPreset; label: string }[] = [
+  { value: "best", label: "Best available · up to 8K" },
+  { value: "8k", label: "8K (4320p) · MKV" },
+  { value: "1440p", label: "1440p · QHD" },
+  { value: "360p", label: "360p · smallest video" },
   { value: "1080p", label: "1080p MP4" },
   { value: "4k", label: "4K (2160p)" },
   { value: "720p", label: "720p" },
@@ -530,7 +545,7 @@ function DownloadSettings() {
           checked={s.downloadSubfoldersByChannel}
           onChange={(v) => s.set("downloadSubfoldersByChannel", v)}
           label="Subfolder per channel"
-          description="~/Videos/LocalTube/CodeWithHarry/video.mp4"
+          description="~/Videos/LumaTube/CodeWithHarry/video.mp4"
         />
         <Switch
           checked={s.showDownloadsInGallery}
@@ -564,21 +579,24 @@ function DownloadSettings() {
         <Switch checked={s.wifiOnlyDownloads} onChange={(v) => s.set("wifiOnlyDownloads", v)} label="Download on Wi-Fi only" />
       </SettingsSection>
 
+      <SettingsSection title="Download notifications">
+        <Switch checked={s.downloadNotifications} onChange={async (v) => { s.set("downloadNotifications", v && await enableDownloadNotifications()); }} label="Show download progress in notifications" description="Permission required. Shows completed size, remaining size and estimated time while the native app is running. Android background service is not yet implemented." />
+      </SettingsSection>
       <SettingsSection title="Auto & storage" icon={<ImageIcon className="h-4 w-4" />}>
         <Switch
           checked={s.autoDownloadNewVideos}
           onChange={(v) => s.set("autoDownloadNewVideos", v)}
           label="Auto-download new videos"
-          description="Keep new subscription uploads offline (travel mode)."
+          description="Off by default. Enable only when you want new uploads downloaded automatically."
         />
-        <Row label="Auto-download preset">
+        {s.autoDownloadNewVideos && <Row label="Auto-download preset">
           <Select value={s.autoDownloadPreset} onChange={(v) => s.set("autoDownloadPreset", v as DownloadPreset)} options={PRESETS} className="w-52" />
-        </Row>
+        </Row>}
         <Row label="Storage cap" description={`Currently ${formatBytes(used)} used.`}>
           <Select
             value={String(s.maxStorageGb)}
             onChange={(v) => s.set("maxStorageGb", Number(v))}
-            options={[5, 10, 25, 50, 100, 250].map((n) => ({ value: String(n), label: `${n} GB` }))}
+            options={[1, 2, 5, 10, 25, 50, 100, 250].map((n) => ({ value: String(n), label: `${n} GB` }))}
             className="w-24"
           />
         </Row>
@@ -639,7 +657,7 @@ function AccountSettings() {
 
   return (
     <>
-      <SettingsSection title="Google account" description="Optional — for syncing subscriptions, playlists and likes." icon={<User className="h-4 w-4" />}>
+      <SettingsSection title="Google account" description="Not implemented yet. Guest mode works without an account." icon={<User className="h-4 w-4" />}>
         <div className="flex flex-wrap items-center justify-between gap-3 py-3.5">
           <div>
             <p className="text-[13px] font-medium">
@@ -670,10 +688,8 @@ function AccountSettings() {
               onClick={async () => {
                 setBusy(true);
                 const r = await googleSignIn();
-                s.patch({
-                  googleConnected: true,
-                  googleEmail: r?.email ?? "you@gmail.com",
-                });
+                if (r?.email) s.patch({ googleConnected: true, googleEmail: r.email });
+                else window.alert("Google sign-in is not implemented in this build. Guest mode remains available; no account has been connected.");
                 setBusy(false);
               }}
             >
@@ -682,10 +698,11 @@ function AccountSettings() {
           )}
         </div>
         <Switch
-          checked={s.syncEnabled}
-          onChange={(v) => s.set("syncEnabled", v)}
-          label="Encrypted cross-device sync"
-          description="Progress, notes and subscriptions in your own cloud folder (zero backend)."
+          checked={false}
+          disabled
+          onChange={() => undefined}
+          label="Encrypted cross-device sync (not available yet)"
+          description="Not implemented in this build. Export a local JSON backup instead."
         />
         <Row label="Sync folder" description="A local Google Drive / Dropbox / OneDrive folder works too.">
           <Input
@@ -813,26 +830,5 @@ function DataSettings() {
 
 /* ── About ─────────────────────────────────────────────────── */
 function AboutSettings() {
-  return (
-    <SettingsSection title="LocalTube" description="A personal, local-first YouTube client." icon={<Info className="h-4 w-4" />}>
-      <div className="space-y-2 py-3.5 text-[12.5px] leading-relaxed text-[var(--text-dim)]">
-        <p>
-          <span className="font-medium text-[var(--text)]">v0.1.0</span> · Tauri v2 + Rust + React 19
-        </p>
-        <p>
-          Playback: yt-dlp / InnerTube with auto-fallback. Metadata: RSS + YouTube Data API.
-          Enrichment: SponsorBlock, DeArrow, Return YouTube Dislike.
-        </p>
-        <p className="text-[var(--text-mute)]">
-          This app is for personal use. Downloaded content is for your own offline viewing —
-          respecting YouTube's Terms of Service is your responsibility.
-        </p>
-        <div className="flex flex-wrap gap-1.5 pt-1">
-          {["SponsorBlock", "DeArrow", "Return YouTube Dislike", "yt-dlp", "Tauri", "React"].map((t) => (
-            <Badge key={t}>{t}</Badge>
-          ))}
-        </div>
-      </div>
-    </SettingsSection>
-  );
+  return <ProjectInfo />;
 }

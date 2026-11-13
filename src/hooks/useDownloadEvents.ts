@@ -1,3 +1,4 @@
+import { notifyDownload } from "@/lib/notifications";
 import { useEffect } from "react";
 import { onDownloadDone, onDownloadError, onDownloadProgress } from "@/lib/bridge";
 import { useLibrary } from "@/store/library";
@@ -16,6 +17,7 @@ export function useDownloadEvents() {
 
     (async () => {
       unProgress = await onDownloadProgress((e) => {
+        void notifyDownload(e.jobId, e.progress, e.bytesDone, e.bytesTotal, e.etaSec);
         useLibrary.getState().updateDownload(e.jobId, {
           status: "running",
           progress: e.progress,
@@ -26,6 +28,7 @@ export function useDownloadEvents() {
         });
       });
       unDone = await onDownloadDone((e) => {
+        void notifyDownload(e.jobId, 1, e.bytesTotal, e.bytesTotal, 0, true);
         useLibrary.getState().updateDownload(e.jobId, {
           status: "done",
           progress: 1,

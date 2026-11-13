@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "LocalTube desktop capabilities",
+  "description": "LumaTube desktop capabilities",
   "windows": ["main"],
   "permissions": [
     "core:default",

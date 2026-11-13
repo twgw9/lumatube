@@ -8,6 +8,10 @@ import { cn, formatBytes } from "@/lib/utils";
 import { startDownload } from "@/lib/bridge";
 
 const PRESETS: { id: DownloadPreset; label: string; sub: string; perHour: number }[] = [
+  { id: "best", label: "Best available", sub: "Up to 8K · original quality · MKV", perHour: 8_000_000_000 },
+  { id: "8k", label: "8K (4320p)", sub: "Highest available up to 8K · MKV", perHour: 12_000_000_000 },
+  { id: "1440p", label: "1440p · QHD", sub: "Sharper than Full HD", perHour: 2_400_000_000 },
+  { id: "360p", label: "360p", sub: "Smallest video · save storage", perHour: 160_000_000 },
   { id: "1080p", label: "1080p MP4", sub: "Best balance · H.264 (universal)", perHour: 1_200_000_000 },
   { id: "4k", label: "4K (2160p)", sub: "Archival · big files", perHour: 5_400_000_000 },
   { id: "720p", label: "720p", sub: "Smaller, still sharp", perHour: 600_000_000 },
@@ -51,6 +55,11 @@ export function DownloadSheet({
   const estimate = (PRESETS.find((p) => p.id === preset)?.perHour ?? 0) * (video.durationSec / 3600);
 
   const submit = async () => {
+    const used = useLibrary.getState().downloads.filter((d) => d.status !== "canceled" && d.status !== "error").reduce((n, d) => n + Math.max(d.bytesDone ?? 0, d.bytesTotal ?? 0), 0);
+    if (used + estimate > settings.maxStorageGb * 1024 ** 3) {
+      window.alert("Storage limit reached. Remove downloads or increase your storage cap in Settings → Downloads.");
+      return;
+    }
     setBusy(true);
     enqueue({
       videoId: video.id,

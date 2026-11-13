@@ -1,4 +1,6 @@
-# LocalTube
+> **Build status:** Browser preview and TypeScript build verified. Rust has not been compiled in this sandbox. Android APK, foreground download service, MediaStore integration, Google OAuth and encrypted sync are not implemented or device-tested. See [Android readiness](docs/android-port.md). GitHub release discovery is a manual sideload flow, not a signed automatic updater. Source is available in this repository; no open-source license has been chosen yet.
+
+# LumaTube
 
 **A local-first YouTube client for desktop.** Ad-free native player, RSS subscription
 feed with zero API quota, downloads straight into your Videos folder (and system
@@ -40,7 +42,7 @@ Settings.
 - **Focus mode** — one switch: recommendations, comments, autoplay, end screens off.
 - **Downloads** — 8 presets (1080p/4K/720p/480p/audio-M4A/MP3/sponsor-free/subs),
   parallel queue, resume, storage cap, gallery toggle per item, embed thumbnail +
-  chapters, files under `~/Videos/LocalTube/<Channel>/`.
+  chapters, files under `~/Videos/LumaTube/<Channel>/`.
 - **Notes** — timestamped markdown notes, jump-to-time, markdown export, clip bookmarks.
 - **Library** — playlists, liked, history, clips, continue-watching sync via SQLite.
 - **Settings** — theme (OLED/graphite/sepia/light), 8 accents, density, engines,

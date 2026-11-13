@@ -284,8 +284,9 @@ export function PlayerSurface({
             <AlertTriangle className="mx-auto h-8 w-8 text-amber-400" />
             <p className="mt-3 text-sm font-medium text-white">This video could not be played</p>
             <p className="mx-auto mt-1 max-w-sm text-[12.5px] leading-relaxed text-white/60">
-              Switching engine. Try another engine in Settings → Playback, or update the extractor.
+              Playback failed. Retry below, or try another engine in Settings → Playback.
             </p>
+            <button className="mt-4 rounded-full bg-[var(--accent)] px-5 py-2 text-sm font-semibold text-black" onClick={() => { if (player.ref.current) { player.ref.current.load(); void player.ref.current.play().catch(() => undefined); } }}>Retry playback</button>
           </div>
         </div>
       )}

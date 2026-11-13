@@ -288,3 +288,22 @@ input[type="range"].lt-range::-moz-range-thumb {
 video::-webkit-media-controls {
   display: none !important;
 }
+
+/* Gentle entrance, tactile cards; reduced-motion rules above remain authoritative. */
+article.anim-fade-up { animation-duration: .38s; }
+article.anim-fade-up:nth-child(4n+2) { animation-delay: .04s; }
+article.anim-fade-up:nth-child(4n+3) { animation-delay: .08s; }
+article.anim-fade-up:nth-child(4n+4) { animation-delay: .12s; }
+button { -webkit-tap-highlight-color: transparent; }
+main { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { main { scroll-behavior: auto; } }
+:root[data-motion="reduced"] main { scroll-behavior: auto; }
+
+:root[data-theme="midnight"] { --bg: #0a1020; --bg-elev: #111a30; --bg-elev-2: #192540; --border: #293655; --text: #eef2ff; --text-dim: #b4bfde; --text-mute: #8b9abc; }
+:root[data-theme="forest"] { --bg: #081812; --bg-elev: #0e231b; --bg-elev-2: #173126; --border: #274638; --text: #ecfdf5; --text-dim: #b3d4c2; --text-mute: #88ad99; }
+:root[data-theme="plum"] { --bg: #180d20; --bg-elev: #23142e; --bg-elev-2: #311e3e; --border: #493153; --text: #fdf4ff; --text-dim: #d9bcdf; --text-mute: #b293bd; }
+@media (max-width: 640px) {
+  button[role="switch"] { min-height: 24px; }
+  main { overflow-x: hidden; }
+  header input::placeholder { font-size: 12px; }
+}

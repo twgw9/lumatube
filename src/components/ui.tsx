@@ -1,4 +1,5 @@
-import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, forwardRef } from "react";
+import { createPortal } from "react-dom";
+import { type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, forwardRef, useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 /* ── Button ──────────────────────────────────────────────────── */
@@ -112,7 +113,7 @@ export function Switch({
     >
       <span
         className={cn(
-          "absolute top-0.5 h-4.5 w-4.5 rounded-full transition-transform duration-200",
+          "absolute left-0 top-0.5 h-4.5 w-4.5 rounded-full transition-transform duration-200",
           checked ? "translate-x-[18px] bg-black/80" : "translate-x-0.5 bg-[var(--text-dim)]",
         )}
       />
@@ -147,28 +148,42 @@ export function Select<T extends string>({
   options: { value: T; label: string }[];
   className?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [box, setBox] = useState({ left: 0, top: 0, width: 220 });
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { close(); trigger.current?.focus(); } };
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", key);
+    return () => { window.removeEventListener("resize", close); window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", key); };
+  }, [open]);
   return (
-    <div className={cn("relative", className)}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="h-9.5 w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--bg-elev-2)] px-3 pr-8 text-sm outline-none focus:border-[color-mix(in_oklab,var(--accent)_50%,var(--border))]"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-[var(--bg-elev)]">
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-mute)]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+    <div className={cn("relative max-w-full", className)}>
+      <button ref={trigger} type="button" aria-haspopup="listbox" aria-expanded={open}
+        onClick={() => {
+          const r = trigger.current!.getBoundingClientRect();
+          const width = Math.min(Math.max(r.width, 220), window.innerWidth - 24);
+          const height = Math.min(options.length * 40 + 12, 280);
+          setBox({ left: Math.max(12, Math.min(r.left, window.innerWidth - width - 12)), top: r.bottom + height > window.innerHeight ? Math.max(12, r.top - height - 6) : r.bottom + 6, width });
+          setOpen(!open);
+        }}
+        className="flex h-9.5 w-full items-center justify-between gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elev-2)] px-3 text-left text-sm transition hover:border-[var(--accent)]">
+        <span className="truncate">{options.find((o) => o.value === value)?.label ?? value}</span>
+        <span className="text-[var(--text-mute)]">⌄</span>
+      </button>
+      {open && createPortal(<>
+        <div className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
+        <div role="listbox" aria-label="Options" className="fixed z-[100] max-h-[280px] overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-elev-2)] p-1.5 shadow-2xl anim-pop" style={box}>
+          {options.map((o) => <button type="button" role="option" aria-selected={o.value === value} key={o.value}
+            onClick={() => { onChange(o.value); setOpen(false); trigger.current?.focus(); }}
+            className={cn("flex min-h-9 w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] transition-colors", o.value === value ? "bg-accent-soft text-[var(--accent)]" : "text-[var(--text)] hover:bg-[var(--bg-elev)]")}>
+            {o.label}{o.value === value && <span>✓</span>}
+          </button>)}
+        </div>
+      </>, document.body)}
     </div>
   );
 }
@@ -247,7 +262,7 @@ export function Row({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-6 py-3.5">
+    <div className="flex flex-col items-start justify-between gap-3 py-3.5 sm:flex-row sm:items-center">
       <div className="min-w-0">
         <div className="text-sm font-medium">{label}</div>
         {description && (
@@ -256,7 +271,7 @@ export function Row({
           </div>
         )}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="max-w-full shrink-0">{children}</div>
     </div>
   );
 }

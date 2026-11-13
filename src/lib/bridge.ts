@@ -45,21 +45,12 @@ export async function resolveStream(
   });
   if (real) return real;
 
-  // Browser demo: two public sample clips so quality switching is visible.
-  const hd = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4";
-  const sd = "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+  // Local CC-BY sample: no third-party media host needed in browser preview.
   return {
-    muxedUrl: hd,
-    durationSec: 15,
+    muxedUrl: "/media/preview.mp4",
+    durationSec: 60,
     source: "demo",
-    qualities: [
-      { label: "2160p", height: 2160, url: hd },
-      { label: "1440p", height: 1440, url: hd },
-      { label: "1080p60", height: 1080, url: hd },
-      { label: "720p", height: 720, url: sd },
-      { label: "480p", height: 480, url: sd },
-      { label: "360p", height: 360, url: sd },
-    ],
+    qualities: [{ label: "360p · Demo", height: 360, url: "/media/preview.mp4" }],
   };
 }
 

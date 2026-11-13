@@ -13,7 +13,7 @@ use crate::error::{AppResult, AppError};
 fn http() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
-        .user_agent("LocalTube/0.1 (+personal)")
+        .user_agent("LumaTube/0.1 (+personal)")
         .gzip(true)
         .build()
         .expect("http")

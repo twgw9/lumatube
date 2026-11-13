@@ -11,6 +11,7 @@ import { cn, formatTime } from "@/lib/utils";
 import type { Video } from "@/lib/types";
 
 export function HomePage() {
+  const showContinueWatching = useSettings((s) => s.showContinueWatching);
   const tabs = useSettings((s) => s.homeTabs);
   const hideShorts = useSettings((s) => s.hideShorts);
   const hideRecommendations = useSettings((s) => s.hideRecommendations);
@@ -31,7 +32,7 @@ export function HomePage() {
     let alive = true;
     loadFeed(150).then((rows) => {
       if (alive && rows.length) setRemoteFeed(rows);
-    });
+    }).catch(() => { /* Keep the offline sample feed available. */ });
     return () => {
       alive = false;
     };
@@ -69,7 +70,7 @@ export function HomePage() {
   const isContinueTab = tab?.kind === "continue";
 
   return (
-    <div className="mx-auto w-full max-w-[1680px] px-4 pb-16 pt-4 sm:px-6">
+    <div className="mx-auto w-full max-w-[1920px] px-4 pb-16 pt-4 sm:px-6">
       {/* header row */}
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <h1 className="mr-1 text-[19px] font-semibold tracking-tight">
@@ -87,13 +88,13 @@ export function HomePage() {
       </div>
 
       {/* tabs */}
-      <div className="sticky top-14 z-20 -mx-4 mb-5 mt-2 flex items-center gap-1.5 overflow-x-auto bg-[var(--bg)]/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
+      <div className="sticky top-0 z-20 -mx-4 mb-5 mt-2 flex items-center gap-1.5 overflow-x-auto bg-[var(--bg)]/90 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6 [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={cn(
-              "h-8 shrink-0 rounded-full border px-3.5 text-[12.5px] font-medium transition-colors",
+              "h-8 shrink-0 rounded-lg border px-3.5 text-[12.5px] font-medium transition-colors",
               activeTab === t.id
                 ? "border-transparent bg-[var(--text)] text-[var(--bg)]"
                 : "border-[var(--border)] bg-[var(--bg-elev)] text-[var(--text-dim)] hover:bg-[var(--bg-elev-2)] hover:text-[var(--text)]",
@@ -104,7 +105,7 @@ export function HomePage() {
         ))}
         <Link
           to="/settings/appearance"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--border)] text-[var(--text-mute)] hover:text-[var(--text)]"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[var(--border)] text-[var(--text-mute)] hover:text-[var(--text)]"
           title="Customize tabs"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -112,7 +113,7 @@ export function HomePage() {
       </div>
 
       {/* continue watching rail */}
-      {!isContinueTab && continueList.length > 0 && !hideRecommendations && (
+      {showContinueWatching && !isContinueTab && continueList.length > 0 && !hideRecommendations && (
         <section className="mb-8">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-[13.5px] font-semibold text-[var(--text-dim)]">
@@ -131,8 +132,8 @@ export function HomePage() {
                   to={`/watch/${v.id}`}
                   className="group flex gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elev)] p-2.5 transition-colors hover:border-[color-mix(in_oklab,var(--accent)_35%,var(--border))]"
                 >
-                  <div className="relative w-36 shrink-0 overflow-hidden rounded-lg">
-                    <img src={v.thumb} alt="" className="aspect-video w-full object-cover" />
+                  <div className="relative w-24 sm:w-32 shrink-0 overflow-hidden rounded-lg">
+                    <img src={v.thumb} alt="" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/media/thumbnail.svg"; }} className="aspect-video w-full object-cover" />
                     <span className="absolute bottom-1 right-1 rounded bg-black/80 px-1 text-[10px] text-white">
                       {formatTime(v.durationSec)}
                     </span>
@@ -148,7 +149,7 @@ export function HomePage() {
                     <p className="mt-1 text-[11.5px] text-[var(--text-mute)]">{v.channelName}</p>
                     <p className="mt-0.5 text-[11.5px] text-[var(--accent)]">
                       {Math.round((p?.percent ?? 0) * 100)}% watched · {formatTime(p?.positionSec ?? 0)}
-                      resume
+                      {" · Resume"}
                     </p>
                   </div>
                 </Link>

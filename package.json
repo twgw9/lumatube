@@ -1,5 +1,5 @@
 {
-  "name": "localtube",
+  "name": "lumatube",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,6 +10,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@tauri-apps/plugin-notification": "^2.8.1",
+    "@tauri-apps/plugin-opener": "^2.7.3",
     "clsx": "^2.1.1",
     "lucide-react": "^0.474.0",
     "react": "^19.0.0",

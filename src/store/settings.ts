@@ -9,6 +9,11 @@ export interface Settings {
   density: Density;
   motion: "full" | "reduced";
   foldThumbs: boolean;
+  showNotes: boolean;
+  onboardingDone: boolean;
+  downloadNotifications: boolean;
+  recordHistory: boolean;
+  showContinueWatching: boolean;
 
   /* playback */
   engine: Engine;
@@ -84,6 +89,11 @@ export const defaultSettings: Settings = {
   density: "comfortable",
   motion: "full",
   foldThumbs: false,
+  showNotes: true,
+  onboardingDone: false,
+  downloadNotifications: false,
+  recordHistory: true,
+  showContinueWatching: true,
 
   engine: "auto",
   defaultSpeed: 1,
@@ -119,7 +129,7 @@ export const defaultSettings: Settings = {
   returnYoutubeDislike: true,
 
   downloadPreset: "1080p",
-  downloadFolder: "~/Videos/LocalTube",
+  downloadFolder: "~/Videos/LumaTube",
   showDownloadsInGallery: true,
   downloadSubfoldersByChannel: true,
   embedThumbnail: true,
@@ -140,7 +150,7 @@ export const defaultSettings: Settings = {
   dataApiKey: "",
   oauthClientId: "",
 
-  syncFolder: "~/LocalTube/sync",
+  syncFolder: "~/LumaTube/sync",
 
   homeTabs: [
     { id: "t_new", label: "New today", kind: "feed", icon: "sparkles" },

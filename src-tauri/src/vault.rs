@@ -53,6 +53,18 @@ struct FmtPlan {
 
 fn plan_for(preset: &str) -> FmtPlan {
     match preset {
+        "best" | "8k" => FmtPlan {
+            format: "bv*[height<=4320]+ba/b[height<=4320]",
+            merge: Some("mkv"), extract_audio: None, subs_only: false,
+        },
+        "1440p" => FmtPlan {
+            format: "bv*[height<=1440]+ba/b[height<=1440]",
+            merge: Some("mp4"), extract_audio: None, subs_only: false,
+        },
+        "360p" => FmtPlan {
+            format: "bv*[height<=360]+ba/b[height<=360]",
+            merge: Some("mp4"), extract_audio: None, subs_only: false,
+        },
         "4k" => FmtPlan {
             format: "bv*[height<=2160]+ba/b",
             merge: Some("mp4"),
@@ -418,7 +430,7 @@ async fn register_in_gallery(path: &str, _video_id: &str) -> AppResult<bool> {
     // Bookshelf for a future implementation:
     //   use jni::objects::{JObject, JString, JValue};
     //   MediaStore.Video.Media.insert(ContentValues{ DISPLAY_NAME, MIME_TYPE,
-    //     RELATIVE_PATH = "Movies/LocalTube/<channel>", IS_PENDING=1 })
+    //     RELATIVE_PATH = "Movies/LumaTube/<channel>", IS_PENDING=1 })
     //   → copy bytes → IS_PENDING=0
     // This keeps the file visible in Gallery/Photos without any storage
     // permission on Android 10+.

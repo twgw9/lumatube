@@ -1,3 +1,4 @@
+import { SubscribeButton } from "@/components/SubscribeButton";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
@@ -54,7 +55,7 @@ export function WatchPage() {
   const [segments, setSegments] = useState<Segment[]>(demoSegments[video.id] ?? []);
   const [transcript, setTranscript] = useState<{ t: number; text: string }[]>([]);
   const [votes, setVotes] = useState<{ likes: number; dislikes: number } | null>(null);
-  const [sideTab, setSideTab] = useState<SideTab>("notes");
+  const [sideTab, setSideTab] = useState<SideTab>(settings.showNotes ? "notes" : "chapters");
   const [theater, setTheater] = useState(false);
   const [cinema, setCinema] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
@@ -64,6 +65,9 @@ export function WatchPage() {
   const [currentTime, setCurrentTime] = useState(startAt);
   const [showDesc, setShowDesc] = useState(false);
 
+  useEffect(() => {
+    if (!settings.showNotes && sideTab === "notes") setSideTab("chapters");
+  }, [settings.showNotes, sideTab]);
   const lastPos = useRef(startAt);
 
   /* ── data loading ─────────────────────────────────────────── */
@@ -82,7 +86,7 @@ export function WatchPage() {
     if (settings.returnYoutubeDislike) {
       fetchDislikes(video.id).then((v) => alive && v && setVotes(v));
     }
-    lib.pushHistory({
+    if (settings.recordHistory) lib.pushHistory({
       videoId: video.id,
       title: video.title,
       channelName: video.channelName,
@@ -245,6 +249,7 @@ export function WatchPage() {
                 </span>
               </Link>
 
+              <SubscribeButton channel={{ id: video.channelId, name: video.channelName, avatar: video.channelAvatar }} />
               <div className="ml-auto flex flex-wrap items-center gap-1.5">
                 <div className="flex h-9 items-center overflow-hidden rounded-full border border-[var(--border)] bg-[var(--bg-elev)]">
                   <button
@@ -278,7 +283,7 @@ export function WatchPage() {
                   <Download className="h-4 w-4" />
                   Download
                 </Button>
-                <Button
+                {settings.showNotes && <Button
                   size="sm"
                   variant="ghost"
                   className="h-9 rounded-full px-3 text-[12.5px]"
@@ -288,7 +293,7 @@ export function WatchPage() {
                   }}
                 >
                   <NotebookPen className="h-4 w-4" /> Note
-                </Button>
+                </Button>}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -408,7 +413,7 @@ export function WatchPage() {
                     { id: "chapters", label: "Chapters", icon: ListVideo },
                     { id: "queue", label: "Queue", icon: Play },
                   ] as const
-                ).map((t) => (
+                ).filter((t) => settings.showNotes || t.id !== "notes").map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setSideTab(t.id)}
@@ -429,7 +434,7 @@ export function WatchPage() {
               </div>
 
               {/* notes */}
-              {sideTab === "notes" && (
+              {settings.showNotes && sideTab === "notes" && (
                 <div className="max-h-[calc(100vh-14rem)] overflow-y-auto p-3">
                   <div className="mb-3 rounded-xl border border-[var(--border)] bg-[var(--bg-elev-2)] p-2.5">
                     <div className="mb-2 flex items-center justify-between text-[11.5px] text-[var(--text-mute)]">

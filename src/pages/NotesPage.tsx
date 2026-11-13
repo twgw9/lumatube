@@ -38,7 +38,7 @@ export function NotesPage() {
           `## ${n.videoTitle}\n_${n.channelName} · ${formatTime(n.tsSec)}_\n\n${n.body}\n\n---\n`,
       )
       .join("\n");
-    const blob = new Blob([`# LocalTube Notes\n\n${md}`], { type: "text/markdown" });
+    const blob = new Blob([`# LumaTube Notes\n\n${md}`], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;

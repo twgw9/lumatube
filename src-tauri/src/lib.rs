@@ -35,11 +35,11 @@ pub fn run() {
                 .to_path_buf();
 
             let database = db::Db::open(data_dir.clone()).expect("open sqlite");
-            tracing::info!(?data_dir, "LocalTube storage ready");
+            tracing::info!(?data_dir, "LumaTube storage ready");
 
             let http = reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(25))
-                .user_agent("LocalTube/0.1 (personal use)")
+                .user_agent("LumaTube/0.1 (personal use)")
                 .build()
                 .expect("http client");
 
@@ -86,5 +86,5 @@ pub fn run() {
             commands::app_paths,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running LocalTube");
+        .expect("error while running LumaTube");
 }
